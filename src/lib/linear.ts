@@ -56,4 +56,47 @@ export async function getTeamIdByProject(projectId: string): Promise<string> {
   return teamId;
 }
 
+export async function findIssueByTitleInProject(projectId: string, title: string) {
+  const query = `query IssuesByTitle($projectId: String!, $title: String!) {
+    issues(filter: { project: { id: { eq: $projectId } }, title: { eq: $title } }, first: 1) {
+      nodes { id identifier title description }
+    }
+  }`;
+  const res = await fetch(LINEAR_GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: runtimeConfig.linear.apiKey()
+    },
+    body: JSON.stringify({ query, variables: { projectId, title } })
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Linear error: ${res.status} ${text}`);
+  }
+  const data = await res.json();
+  return data?.data?.issues?.nodes?.[0] ?? null;
+}
+
+export async function updateIssueDescription(issueId: string, description: string) {
+  const mutation = `mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+    issueUpdate(id: $id, input: $input) { success issue { id identifier title description } }
+  }`;
+  const variables = { id: issueId, input: { description } };
+  const res = await fetch(LINEAR_GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: runtimeConfig.linear.apiKey()
+    },
+    body: JSON.stringify({ query: mutation, variables })
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Linear error: ${res.status} ${text}`);
+  }
+  const data = await res.json();
+  return data?.data?.issueUpdate?.issue;
+}
+
 

@@ -43,4 +43,21 @@ export async function appendMarkdownToPage(pageId: string, markdown: string) {
   }
 }
 
+export async function createChildPage(parentPageId: string, title: string): Promise<string> {
+  const page = await getNotion().pages.create({
+    parent: { page_id: parentPageId },
+    properties: {
+      title: {
+        title: [
+          {
+            type: "text",
+            text: { content: title }
+          }
+        ]
+      }
+    }
+  } as any);
+  return (page as any).id as string;
+}
+
 
