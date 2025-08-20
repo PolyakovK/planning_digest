@@ -1,13 +1,12 @@
 type RequiredEnv =
   | "NOTION_TOKEN"
-  | "NOTION_PAGE_WEEKLY_PLANNING_ID"
-  | "NOTION_PAGE_ALL_MEETINGS_ID"
-  | "NOTION_PAGE_FORECASTS_ID"
-  | "DIGEST_NOTION_TARGET_PAGE_ID"
+  | "MEETINGS_ROOT_PAGE_ID"
+  | "FORECASTS_ROOT_PAGE_ID"
+  | "DIGESTS_ROOT_PAGE_ID"
   | "OPENAI_API_KEY"
   | "LINEAR_API_KEY"
-  | "LINEAR_TEAM_ID"
-  | "LINEAR_PROJECT_ID";
+  | "LINEAR_WEEKLY_PROJECT_ID"
+  | "WEEKLY_PLANNING_ROOT_PAGE_ID";
 
 export function getEnv(name: RequiredEnv | string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -20,12 +19,12 @@ export function getEnv(name: RequiredEnv | string, fallback?: string): string {
 export const runtimeConfig = {
   notion: {
     token: () => getEnv("NOTION_TOKEN"), // TODO: Add to .env
-    weeklyPlanningPageId: () => getEnv("NOTION_PAGE_WEEKLY_PLANNING_ID"), // TODO: Add to .env
-    allMeetingsPageId: () => getEnv("NOTION_PAGE_ALL_MEETINGS_ID"), // TODO: Add to .env
-    forecastsPageId: () => getEnv("NOTION_PAGE_FORECASTS_ID") // TODO: Add to .env
+    weeklyPlanningPageId: () => getEnv("WEEKLY_PLANNING_ROOT_PAGE_ID"), // TODO: Add to .env
+    allMeetingsPageId: () => getEnv("MEETINGS_ROOT_PAGE_ID"), // TODO: Add to .env
+    forecastsPageId: () => getEnv("FORECASTS_ROOT_PAGE_ID") // TODO: Add to .env
   },
   digest: {
-    targetPageId: () => getEnv("DIGEST_NOTION_TARGET_PAGE_ID"), // TODO: Add to .env
+    targetPageId: () => getEnv("DIGESTS_ROOT_PAGE_ID"), // TODO: Add to .env
     timezone: () => process.env.DIGEST_TIMEZONE || "Europe/Moscow"
   },
   openai: {
@@ -34,8 +33,7 @@ export const runtimeConfig = {
   },
   linear: {
     apiKey: () => getEnv("LINEAR_API_KEY"), // TODO: Add to .env
-    teamId: () => getEnv("LINEAR_TEAM_ID"), // TODO: Add to .env
-    projectId: () => getEnv("LINEAR_PROJECT_ID") // TODO: Add to .env
+    projectId: () => getEnv("LINEAR_WEEKLY_PROJECT_ID") // TODO: Add to .env
   }
 };
 
