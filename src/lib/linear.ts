@@ -37,7 +37,7 @@ export async function createLinearIssue(input: LinearIssueInput) {
 }
 
 export async function getTeamIdByProject(projectId: string): Promise<string> {
-  const query = `query GetProject($id: String!) { project(id: $id) { id name team { id name } } }`;
+  const query = `query GetProject($id: String!) { project(id: $id) { id name teams(first: 1) { nodes { id name } } } }`;
   const res = await fetch(LINEAR_GRAPHQL_ENDPOINT, {
     method: "POST",
     headers: {
@@ -51,8 +51,8 @@ export async function getTeamIdByProject(projectId: string): Promise<string> {
     throw new Error(`Linear error: ${res.status} ${text}`);
   }
   const data = await res.json();
-  const teamId = data?.data?.project?.team?.id as string | undefined;
-  if (!teamId) throw new Error("Linear: cannot resolve teamId by projectId");
+  const teamId = data?.data?.project?.teams?.nodes?.[0]?.id as string | undefined;
+  if (!teamId) throw new Error("Linear: cannot resolve teamId by projectId (no teams attached)");
   return teamId;
 }
 
