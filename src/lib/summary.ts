@@ -14,8 +14,8 @@ export async function collectSourceTexts() {
   // Meetings: только последние 7 дней, агрегировано по владельцам
   const allMeetingsText = await getMeetingsRawForLastDays(meetingsRoot, 7);
 
-  // Forecasts: несколько последних страниц, слепленные вместе
-  const forecastsText = await getForecastsRawAggregate(forecastsRoot, 5);
+  // Forecasts: только за последние 7 дней
+  const forecastsText = await getForecastsRawAggregate(forecastsRoot, 7, 10);
 
   return { weeklyPlanningText, allMeetingsText, forecastsText };
 }

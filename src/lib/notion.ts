@@ -161,11 +161,15 @@ export async function getMeetingsRawForLastDays(meetingsRootId: string, days: nu
   return chunks.join("\n");
 }
 
-export async function getForecastsRawAggregate(forecastsRootId: string, limit: number = 5): Promise<string> {
+export async function getForecastsRawAggregate(
+  forecastsRootId: string,
+  days: number = 7,
+  limit: number = 10
+): Promise<string> {
   const items = await listChildPages(forecastsRootId);
   const dated = items
     .map((p) => ({ ...p, date: parseDateFromTitle(p.title) }))
-    .filter((p) => !!p.date)
+    .filter((p) => !!p.date && isWithinDays(p.date as Date, days))
     .sort((a, b) => (b.date!.getTime() - a.date!.getTime()));
   const top = dated.slice(0, limit);
   const parts: string[] = [];
