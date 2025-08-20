@@ -64,21 +64,12 @@ export async function getPageMarkdown(pageId: string, depth: number = 1): Promis
 }
 
 export async function appendMarkdownToPage(pageId: string, markdown: string) {
-  // naive append as paragraph blocks chunked by 1800 chars
-  const chunks: string[] = [];
-  for (let i = 0; i < markdown.length; i += 1800) chunks.push(markdown.slice(i, i + 1800));
-  for (const chunk of chunks) {
+  const blocks = markdown_to_notion_blocks(markdown);
+  // Notion API allows up to 100 children per append
+  for (let i = 0; i < blocks.length; i += 50) {
     await getNotion().blocks.children.append({
       block_id: pageId,
-      children: [
-        {
-          object: "block",
-          type: "paragraph",
-          paragraph: {
-            rich_text: [{ type: "text", text: { content: chunk } }]
-          }
-        }
-      ]
+      children: blocks.slice(i, i + 50) as any
     });
   }
 }
@@ -141,6 +132,71 @@ export async function getLatestChildPageMarkdownByDate(rootPageId: string): Prom
   if (!best) return null;
   const markdown = await getPageMarkdown(best.id, 2);
   return { title: best.title, markdown };
+}
+
+// Convert simple Markdown to Notion blocks
+export function markdown_to_notion_blocks(markdown: string): Array<any> {
+  const lines = (markdown || "").replace(/\r\n/g, "\n").split("\n");
+
+  function toRich(text: string) {
+    if (!text) return [] as any[];
+    const parts = text.split(/\*\*/);
+    const rich: any[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      const content = parts[i];
+      if (!content) continue;
+      rich.push({
+        type: "text",
+        text: { content },
+        annotations: { bold: i % 2 === 1 }
+      });
+    }
+    return rich.length ? rich : [{ type: "text", text: { content: text } }];
+  }
+
+  const blocks: any[] = [];
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (!line.trim()) {
+      // пустые строки — пропускаем
+      continue;
+    }
+
+    const h = line.match(/^(#{1,3})\s+(.*)$/);
+    if (h) {
+      const level = h[1].length;
+      const text = h[2];
+      const key = (level === 1 ? "heading_1" : level === 2 ? "heading_2" : "heading_3") as
+        | "heading_1"
+        | "heading_2"
+        | "heading_3";
+      blocks.push({
+        object: "block",
+        type: key,
+        [key]: { rich_text: toRich(text) }
+      });
+      continue;
+    }
+
+    const li = line.match(/^[-•]\s+(.*)$/);
+    if (li) {
+      blocks.push({
+        object: "block",
+        type: "bulleted_list_item",
+        bulleted_list_item: { rich_text: toRich(li[1]) }
+      });
+      continue;
+    }
+
+    // paragraph fallback
+    blocks.push({
+      object: "block",
+      type: "paragraph",
+      paragraph: { rich_text: toRich(line) }
+    });
+  }
+
+  return blocks;
 }
 
 export async function getMeetingsRawForLastDays(meetingsRootId: string, days: number): Promise<string> {
