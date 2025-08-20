@@ -12,7 +12,6 @@ export async function generateText(input: string): Promise<string> {
     throw new Error("OPENAI_MODEL must be 'gpt-5-mini'");
   }
   const res = await getOpenAI().responses.create({ model: MODEL, input });
-  // @ts-expect-error openai sdk provides output_text in runtime
   return res.output_text as string;
 }
 
