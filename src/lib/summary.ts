@@ -78,10 +78,7 @@ export async function buildDigestMarkdown() {
     for (const h of data.highlights) lines.push(`- ${h}`);
   }
 
-  if (Array.isArray(data.metrics) && data.metrics.length) {
-    lines.push("\n### 📈 Метрики недели");
-    for (const m of data.metrics) lines.push(`- ${m}`);
-  }
+  // Метрики недели удалены по требованиям — не выводим
 
   if (Array.isArray(data.departments) && data.departments.length) {
     lines.push("\n### 🏢 Планы отделов на неделю");
