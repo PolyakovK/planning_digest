@@ -180,4 +180,26 @@ export async function getForecastsRawAggregate(
   return parts.join("\n\n");
 }
 
+export async function getForecastsListForLastDays(
+  forecastsRootId: string,
+  days: number = 7
+): Promise<Array<{ title: string; url?: string; date?: Date }>> {
+  const notion = getNotion();
+  const items = await listChildPages(forecastsRootId);
+  const dated = items
+    .map((p) => ({ ...p, date: parseDateFromTitle(p.title) }))
+    .filter((p) => !!p.date && isWithinDays(p.date as Date, days))
+    .sort((a, b) => (b.date!.getTime() - a.date!.getTime()));
+  const result: Array<{ title: string; url?: string; date?: Date }> = [];
+  for (const it of dated) {
+    try {
+      const page = (await notion.pages.retrieve({ page_id: it.id as string })) as any;
+      result.push({ title: it.title, url: page?.url, date: it.date as Date });
+    } catch {
+      result.push({ title: it.title, date: it.date as Date });
+    }
+  }
+  return result;
+}
+
 

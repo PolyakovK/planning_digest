@@ -1,5 +1,5 @@
 import { runtimeConfig } from "@/lib/env";
-import { getLatestChildPageMarkdownByDate, getMeetingsRawForLastDays, getForecastsRawAggregate, getPageMarkdown } from "@/lib/notion";
+import { getLatestChildPageMarkdownByDate, getMeetingsRawForLastDays, getForecastsRawAggregate, getForecastsListForLastDays, getPageMarkdown } from "@/lib/notion";
 import { buildWeeklyDigestPrompt, buildWeeklyTasksExtractionPrompt, generateText } from "@/lib/llm";
 
 export async function collectSourceTexts() {
@@ -23,8 +23,37 @@ export async function collectSourceTexts() {
 export async function buildDigestMarkdown() {
   const { weeklyPlanningText, allMeetingsText, forecastsText } = await collectSourceTexts();
   const prompt = buildWeeklyDigestPrompt({ weeklyPlanningText, allMeetingsText, forecastsText });
-  const digest = await generateText(prompt);
-  return digest.trim();
+  const digestRaw = (await generateText(prompt)).trim();
+  // Post-format: normalize line breaks, remove double spaces
+  const digest = digestRaw
+    .replace(/\r\n/g, "\n")
+    .replace(/[\t ]+/g, (m) => (m.includes(" ") ? " " : m))
+    .replace(/\n{3,}/g, "\n\n");
+
+  // Replace headings-like lines for H3 style (###) while keeping Notion-friendly formatting
+  const lines = digest.split("\n");
+  const polished: string[] = [];
+  for (const line of lines) {
+    if (/^[A-ZА-Я0-9 _()\/\-]{6,}$/.test(line) && !line.startsWith("- ")) {
+      polished.push(`### ${line}`);
+    } else {
+      polished.push(line);
+    }
+  }
+
+  // Append clean Forecasts list with links under a dedicated section
+  const forecastsRoot = runtimeConfig.notion.forecastsPageId();
+  const list = await getForecastsListForLastDays(forecastsRoot, 7);
+  if (list.length > 0) {
+    polished.push("\n### ФОРКАСТЫ ЗА 7 ДНЕЙ");
+    for (const item of list) {
+      const dateStr = item.date ? item.date.toISOString().slice(0, 10) : "";
+      if (item.url) polished.push(`- ${item.title} (${dateStr}) — ${item.url}`);
+      else polished.push(`- ${item.title} (${dateStr})`);
+    }
+  }
+
+  return polished.join("\n");
 }
 
 export type LinearTasksPayload = {
