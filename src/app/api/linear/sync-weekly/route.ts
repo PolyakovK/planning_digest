@@ -15,14 +15,9 @@ export async function POST() {
     const today = new Date().toISOString().slice(0, 10);
     for (const employee of data.employees) {
       for (const task of employee.tasks) {
-        const issue = await createLinearIssue({
-          title: `${employee.name}: ${task.title}`,
-          description: task.description,
-          teamId,
-          projectId
-        });
-        // Before creating, try to find existing by exact title in this project
-        const existing = await findIssueByTitleInProject(projectId, `${employee.name}: ${task.title}`);
+        const title = `${employee.name}: ${task.title}`;
+        // First check existing to avoid duplicates
+        const existing = await findIssueByTitleInProject(projectId, title);
         if (existing) {
           const base = existing.description ?? "";
           const appended = `${base}\n\n---\nUpdate ${today}: ${task.description ?? "прогресс без описания"}`;
@@ -30,6 +25,12 @@ export async function POST() {
           if (res) updated.push(res);
           continue;
         }
+        const issue = await createLinearIssue({
+          title,
+          description: task.description,
+          teamId,
+          projectId
+        });
         if (issue) created.push(issue);
       }
     }

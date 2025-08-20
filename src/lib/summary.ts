@@ -1,5 +1,5 @@
 import { runtimeConfig } from "@/lib/env";
-import { getPageMarkdown } from "@/lib/notion";
+import { getLatestChildPageMarkdownByDate, getMeetingsRawForLastDays, getForecastsRawAggregate, getPageMarkdown } from "@/lib/notion";
 import { buildWeeklyDigestPrompt, buildWeeklyTasksExtractionPrompt, generateText } from "@/lib/llm";
 
 export async function collectSourceTexts() {
@@ -7,14 +7,15 @@ export async function collectSourceTexts() {
   const meetingsRoot = runtimeConfig.notion.allMeetingsPageId();
   const forecastsRoot = runtimeConfig.notion.forecastsPageId();
 
-  // Weekly Planning: глубина 2 (раздел -> последняя страница недели)
-  const weeklyPlanningText = await getPageMarkdown(weeklyPlanningRoot, 2);
+  // Weekly Planning: возьмем последнюю по дате страницу внутри раздела
+  const latestWeekly = await getLatestChildPageMarkdownByDate(weeklyPlanningRoot);
+  const weeklyPlanningText = latestWeekly?.markdown ?? (await getPageMarkdown(weeklyPlanningRoot, 2));
 
-  // Meetings: глубина 3, чтобы обойти вложенные разделы сотрудников
-  const allMeetingsText = await getPageMarkdown(meetingsRoot, 3);
+  // Meetings: только последние 7 дней, агрегировано по владельцам
+  const allMeetingsText = await getMeetingsRawForLastDays(meetingsRoot, 7);
 
-  // Forecasts: глубина 2
-  const forecastsText = await getPageMarkdown(forecastsRoot, 2);
+  // Forecasts: несколько последних страниц, слепленные вместе
+  const forecastsText = await getForecastsRawAggregate(forecastsRoot, 5);
 
   return { weeklyPlanningText, allMeetingsText, forecastsText };
 }

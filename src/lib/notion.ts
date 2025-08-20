@@ -100,4 +100,80 @@ export async function createChildPage(parentPageId: string, title: string): Prom
   return (page as any).id as string;
 }
 
+export async function listChildPages(parentPageId: string): Promise<Array<{ id: string; title: string }>> {
+  const blocks = await listAllBlocks(parentPageId);
+  const pages: Array<{ id: string; title: string }> = [];
+  for (const block of blocks) {
+    const anyBlock = block as any;
+    if (anyBlock.type === "child_page") {
+      pages.push({ id: anyBlock.id, title: anyBlock.child_page?.title ?? "" });
+    }
+  }
+  return pages;
+}
+
+export function parseDateFromTitle(title: string): Date | null {
+  // match dd.mm.yyyy or dd.mm.yy
+  const m = title.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
+  if (!m) return null;
+  const [_, dd, mm, yyyy] = m;
+  const year = yyyy.length === 2 ? Number(`20${yyyy}`) : Number(yyyy);
+  const date = new Date(Date.UTC(year, Number(mm) - 1, Number(dd)));
+  return isNaN(date.getTime()) ? null : date;
+}
+
+export function isWithinDays(date: Date, days: number, now: Date = new Date()): boolean {
+  const ms = days * 24 * 60 * 60 * 1000;
+  const diff = now.getTime() - date.getTime();
+  return diff >= 0 && diff <= ms;
+}
+
+export async function getLatestChildPageMarkdownByDate(rootPageId: string): Promise<{ title: string; markdown: string } | null> {
+  const pages = await listChildPages(rootPageId);
+  let best: { id: string; title: string; date: Date } | null = null;
+  for (const p of pages) {
+    const d = parseDateFromTitle(p.title);
+    if (!d) continue;
+    if (!best || d.getTime() > best.date.getTime()) {
+      best = { id: p.id, title: p.title, date: d };
+    }
+  }
+  if (!best) return null;
+  const markdown = await getPageMarkdown(best.id, 2);
+  return { title: best.title, markdown };
+}
+
+export async function getMeetingsRawForLastDays(meetingsRootId: string, days: number): Promise<string> {
+  const ownerSections = await listChildPages(meetingsRootId);
+  const chunks: string[] = [];
+  for (const owner of ownerSections) {
+    const meetings = await listChildPages(owner.id);
+    const recent = meetings
+      .map((m) => ({ ...m, date: parseDateFromTitle(m.title) }))
+      .filter((m) => m.date && isWithinDays(m.date as Date, days)) as Array<{ id: string; title: string; date: Date }>;
+    if (recent.length === 0) continue;
+    chunks.push(`\n[OWNER] ${owner.title}`);
+    for (const meet of recent) {
+      const text = await getPageMarkdown(meet.id, 1);
+      chunks.push(`- ${meet.title}\n${text}`);
+    }
+  }
+  return chunks.join("\n");
+}
+
+export async function getForecastsRawAggregate(forecastsRootId: string, limit: number = 5): Promise<string> {
+  const items = await listChildPages(forecastsRootId);
+  const dated = items
+    .map((p) => ({ ...p, date: parseDateFromTitle(p.title) }))
+    .filter((p) => !!p.date)
+    .sort((a, b) => (b.date!.getTime() - a.date!.getTime()));
+  const top = dated.slice(0, limit);
+  const parts: string[] = [];
+  for (const it of top) {
+    const md = await getPageMarkdown(it.id, 1);
+    parts.push(`[FORECAST] ${it.title}\n${md}`);
+  }
+  return parts.join("\n\n");
+}
+
 
