@@ -28,6 +28,46 @@ export async function buildDigestMarkdown() {
   let data: any;
   try { data = JSON.parse(jsonRaw); } catch { data = {}; }
 
+  // Нормализация имен: Кирилл/Кира = один человек
+  const normalizeName = (name: string): string => {
+    const base = (name || "").trim();
+    if (/^(Кирилл|Кира)\b/i.test(base)) return "Кирилл / Кира";
+    return base;
+  };
+
+  // Объединяем людей с одинаковыми нормализованными именами в отделах
+  if (Array.isArray(data.departments)) {
+    for (const dep of data.departments) {
+      if (!Array.isArray(dep.people)) continue;
+      const merged: Record<string, { name: string; focus: string[]; tasks: string[] }> = {};
+      for (const p of dep.people) {
+        const key = normalizeName(p?.name);
+        if (!key) continue;
+        if (!merged[key]) merged[key] = { name: key, focus: [], tasks: [] };
+        if (Array.isArray(p?.focus)) merged[key].focus.push(...p.focus);
+        if (Array.isArray(p?.tasks)) merged[key].tasks.push(...p.tasks);
+      }
+      // Deduplicate
+      dep.people = Object.values(merged).map((x) => ({
+        name: x.name,
+        focus: Array.from(new Set(x.focus.filter(Boolean))),
+        tasks: Array.from(new Set(x.tasks.filter(Boolean)))
+      }));
+    }
+  }
+
+  // Объединяем активность клиентов по нормализованным именам
+  if (Array.isArray(data.clientActivity)) {
+    const merged: Record<string, { employee: string; meetings: any[] }> = {};
+    for (const a of data.clientActivity) {
+      const key = normalizeName(a?.employee);
+      if (!key) continue;
+      if (!merged[key]) merged[key] = { employee: key, meetings: [] };
+      if (Array.isArray(a?.meetings)) merged[key].meetings.push(...a.meetings);
+    }
+    data.clientActivity = Object.values(merged);
+  }
+
   // 2) Рендерим Markdown с визуальной структурой и эмодзи
   const lines: string[] = [];
   const today = new Date().toISOString().slice(0, 10);
@@ -79,18 +119,6 @@ export async function buildDigestMarkdown() {
   if (Array.isArray(data.attention) && data.attention.length) {
     lines.push("\n### ⚠️ Внимание требует");
     for (const r of data.attention) lines.push(`- ${r}`);
-  }
-
-  // 3) Список конкретных форкастов с ссылками (за 7 дней)
-  const forecastsRoot = runtimeConfig.notion.forecastsPageId();
-  const list = await getForecastsListForLastDays(forecastsRoot, 7);
-  if (list.length > 0) {
-    lines.push("\n### 🔗 Форкасты (ссылки)");
-    for (const item of list) {
-      const dateStr = item.date ? item.date.toISOString().slice(0, 10) : "";
-      if (item.url) lines.push(`- ${item.title} (${dateStr}) — ${item.url}`);
-      else lines.push(`- ${item.title} (${dateStr})`);
-    }
   }
 
   return lines.join("\n");
