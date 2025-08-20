@@ -3,15 +3,18 @@ import { getPageMarkdown } from "@/lib/notion";
 import { buildWeeklyDigestPrompt, buildWeeklyTasksExtractionPrompt, generateText } from "@/lib/llm";
 
 export async function collectSourceTexts() {
-  const weeklyPlanningId = runtimeConfig.notion.weeklyPlanningPageId();
-  const allMeetingsId = runtimeConfig.notion.allMeetingsPageId();
-  const forecastsId = runtimeConfig.notion.forecastsPageId();
+  const weeklyPlanningRoot = runtimeConfig.notion.weeklyPlanningPageId();
+  const meetingsRoot = runtimeConfig.notion.allMeetingsPageId();
+  const forecastsRoot = runtimeConfig.notion.forecastsPageId();
 
-  const [weeklyPlanningText, allMeetingsText, forecastsText] = await Promise.all([
-    getPageMarkdown(weeklyPlanningId),
-    getPageMarkdown(allMeetingsId),
-    getPageMarkdown(forecastsId)
-  ]);
+  // Weekly Planning: глубина 2 (раздел -> последняя страница недели)
+  const weeklyPlanningText = await getPageMarkdown(weeklyPlanningRoot, 2);
+
+  // Meetings: глубина 3, чтобы обойти вложенные разделы сотрудников
+  const allMeetingsText = await getPageMarkdown(meetingsRoot, 3);
+
+  // Forecasts: глубина 2
+  const forecastsText = await getPageMarkdown(forecastsRoot, 2);
 
   return { weeklyPlanningText, allMeetingsText, forecastsText };
 }

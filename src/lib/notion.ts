@@ -5,20 +5,60 @@ function getNotion() {
   return new Client({ auth: runtimeConfig.notion.token() });
 }
 
-export async function getPageMarkdown(pageId: string): Promise<string> {
-  const blocks = await getNotion().blocks.children.list({ block_id: pageId, page_size: 100 });
+async function listAllBlocks(blockId: string) {
+  const notion = getNotion();
+  const results: any[] = [];
+  let cursor: string | undefined = undefined;
+  do {
+    const resp = await notion.blocks.children.list({ block_id: blockId, page_size: 100, start_cursor: cursor });
+    results.push(...resp.results);
+    cursor = resp.has_more ? resp.next_cursor ?? undefined : undefined;
+  } while (cursor);
+  return results;
+}
+
+function extractTextFromRich(rich?: Array<any>): string {
+  return (rich || []).map((r) => r.plain_text).join("");
+}
+
+export async function getPageMarkdown(pageId: string, depth: number = 1): Promise<string> {
+  const blocks = await listAllBlocks(pageId);
   const lines: string[] = [];
-  for (const block of blocks.results) {
-    // very lightweight text extractor for headings/paragraphs/bulleted lists
-    // we keep it simple; Notion structure may vary
+  for (const block of blocks) {
     const anyBlock = block as any;
     const type = anyBlock.type as string;
-    const rich = anyBlock[type]?.rich_text as Array<any> | undefined;
-    const text = (rich || []).map((r) => r.plain_text).join("");
-    if (!text) continue;
-    if (type?.includes("heading")) lines.push(`# ${text}`);
-    else if (type === "bulleted_list_item" || type === "numbered_list_item") lines.push(`- ${text}`);
-    else lines.push(text);
+    if (!type) continue;
+    if (type.includes("heading")) {
+      const text = extractTextFromRich(anyBlock[type]?.rich_text);
+      if (text) lines.push(`# ${text}`);
+      continue;
+    }
+    if (type === "paragraph") {
+      const text = extractTextFromRich(anyBlock.paragraph?.rich_text);
+      if (text) lines.push(text);
+      continue;
+    }
+    if (type === "bulleted_list_item" || type === "numbered_list_item") {
+      const text = extractTextFromRich(anyBlock[type]?.rich_text);
+      if (text) lines.push(`- ${text}`);
+      continue;
+    }
+    if (type === "child_page" && depth > 0) {
+      const childTitle: string = anyBlock.child_page?.title ?? "";
+      lines.push(`\n## ${childTitle}`);
+      const childId: string = anyBlock.id;
+      const childText = await getPageMarkdown(childId, depth - 1);
+      if (childText) lines.push(childText);
+      continue;
+    }
+    if (type === "link_to_page" && depth > 0) {
+      const linkPageId: string | undefined = anyBlock.link_to_page?.page_id;
+      if (linkPageId) {
+        const childText = await getPageMarkdown(linkPageId, depth - 1);
+        if (childText) lines.push(childText);
+      }
+      continue;
+    }
   }
   return lines.join("\n");
 }

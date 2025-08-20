@@ -21,7 +21,7 @@ export function buildWeeklyDigestPrompt(opts: {
   forecastsText: string;
 }): string {
   const { weeklyPlanningText, allMeetingsText, forecastsText } = opts;
-  return `Ты — ассистент-компактного менеджерского дайджеста. На входе контекст из Notion.
+  return `Ты — ассистент-компактного менеджерского дайджеста. На входе «сырой» экспорт из Notion (возможны заголовки, маркеры, повторяющиеся блоки). Не требуй доп. ввода.
 
 1) Сформируй блок "Планирование ревенью команды". По каждому сотруднику:
 - Фокусные клиенты на неделю (списком)
@@ -35,7 +35,7 @@ export function buildWeeklyDigestPrompt(opts: {
 
 Формат вывода: Markdown, только три блока с подзаголовками.
 
-[WEEKLY PLANNING]\n${weeklyPlanningText}\n\n[MEETINGS 7 DAYS]\n${allMeetingsText}\n\n[FORECASTS]\n${forecastsText}`;
+[WEEKLY PLANNING RAW]\n${weeklyPlanningText}\n\n[MEETINGS RAW]\n${allMeetingsText}\n\n[FORECASTS RAW]\n${forecastsText}`;
 }
 
 export function buildWeeklyTasksExtractionPrompt(weeklyPlanningText: string): string {
