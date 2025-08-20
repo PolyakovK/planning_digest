@@ -1,5 +1,5 @@
 import { extractWeeklyTasks } from "@/lib/summary";
-import { createLinearIssue, getTeamIdByProject, findIssueByTitleInProject, updateIssueDescription } from "@/lib/linear";
+import { createLinearIssue, getTeamIdByProject, findIssueByTitleInProject, updateIssueDescription, resolveProjectIdFromEnv } from "@/lib/linear";
 import { runtimeConfig } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function POST() {
   try {
     const data = await extractWeeklyTasks();
-    const projectId = runtimeConfig.linear.projectId();
+    const projectId = await resolveProjectIdFromEnv();
     const teamId = await getTeamIdByProject(projectId);
 
     const created: Array<{ id: string; identifier: string; title: string }> = [];
