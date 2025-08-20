@@ -37,7 +37,7 @@ export async function createLinearIssue(input: LinearIssueInput) {
 }
 
 export async function getTeamIdByProject(projectId: string): Promise<string> {
-  const query = `query GetProject($id: String!) { project(id: $id) { id name teams(first: 1) { nodes { id name } } } }`;
+  const query = `query GetProject($id: ID!) { project(id: $id) { id name teams(first: 1) { nodes { id name } } } }`;
   const res = await fetch(LINEAR_GRAPHQL_ENDPOINT, {
     method: "POST",
     headers: {
@@ -57,7 +57,7 @@ export async function getTeamIdByProject(projectId: string): Promise<string> {
 }
 
 export async function findIssueByTitleInProject(projectId: string, title: string) {
-  const query = `query IssuesByTitle($projectId: String!, $title: String!) {
+  const query = `query IssuesByTitle($projectId: ID!, $title: String!) {
     issues(filter: { project: { id: { eq: $projectId } }, title: { eq: $title } }, first: 1) {
       nodes { id identifier title description }
     }
@@ -79,7 +79,7 @@ export async function findIssueByTitleInProject(projectId: string, title: string
 }
 
 export async function updateIssueDescription(issueId: string, description: string) {
-  const mutation = `mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+  const mutation = `mutation UpdateIssue($id: ID!, $input: IssueUpdateInput!) {
     issueUpdate(id: $id, input: $input) { success issue { id identifier title description } }
   }`;
   const variables = { id: issueId, input: { description } };
