@@ -2,7 +2,7 @@ import { extractWeeklyTasks } from "@/lib/summary";
 import { createLinearIssue } from "@/lib/linear";
 import { runtimeConfig } from "@/lib/env";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function POST() {
   try {

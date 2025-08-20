@@ -2,7 +2,7 @@ import { appendMarkdownToPage } from "@/lib/notion";
 import { buildDigestMarkdown } from "@/lib/summary";
 import { runtimeConfig } from "@/lib/env";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function POST() {
   try {
