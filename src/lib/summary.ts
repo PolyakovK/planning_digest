@@ -1,6 +1,6 @@
 import { runtimeConfig } from "@/lib/env";
 import { getLatestChildPageMarkdownByDate, getMeetingsRawForLastDays, getForecastsRawAggregate, getForecastsListForLastDays, getPageMarkdown } from "@/lib/notion";
-import { buildWeeklyDigestPrompt, buildWeeklyTasksExtractionPrompt, generateText } from "@/lib/llm";
+import { buildWeeklyDigestPrompt, buildWeeklyTasksExtractionPrompt, buildStructuredDigestJsonPrompt, generateText } from "@/lib/llm";
 
 export async function collectSourceTexts() {
   const weeklyPlanningRoot = runtimeConfig.notion.weeklyPlanningPageId();
@@ -22,38 +22,78 @@ export async function collectSourceTexts() {
 
 export async function buildDigestMarkdown() {
   const { weeklyPlanningText, allMeetingsText, forecastsText } = await collectSourceTexts();
-  const prompt = buildWeeklyDigestPrompt({ weeklyPlanningText, allMeetingsText, forecastsText });
-  const digestRaw = (await generateText(prompt)).trim();
-  // Post-format: normalize line breaks, remove double spaces
-  const digest = digestRaw
-    .replace(/\r\n/g, "\n")
-    .replace(/[\t ]+/g, (m) => (m.includes(" ") ? " " : m))
-    .replace(/\n{3,}/g, "\n\n");
+  // 1) Структурируем данные в JSON
+  const jsonPrompt = buildStructuredDigestJsonPrompt({ weeklyPlanningText, allMeetingsText, forecastsText });
+  const jsonRaw = await generateText(jsonPrompt);
+  let data: any;
+  try { data = JSON.parse(jsonRaw); } catch { data = {}; }
 
-  // Replace headings-like lines for H3 style (###) while keeping Notion-friendly formatting
-  const lines = digest.split("\n");
-  const polished: string[] = [];
-  for (const line of lines) {
-    if (/^[A-ZА-Я0-9 _()\/\-]{6,}$/.test(line) && !line.startsWith("- ")) {
-      polished.push(`### ${line}`);
-    } else {
-      polished.push(line);
+  // 2) Рендерим Markdown с визуальной структурой и эмодзи
+  const lines: string[] = [];
+  const today = new Date().toISOString().slice(0, 10);
+  lines.push(`📊 Weekly Digest ${today}`);
+
+  if (Array.isArray(data.highlights) && data.highlights.length) {
+    lines.push("\n### 🎯 Ключевые итоги недели");
+    for (const h of data.highlights) lines.push(`- ${h}`);
+  }
+
+  if (Array.isArray(data.metrics) && data.metrics.length) {
+    lines.push("\n### 📈 Метрики недели");
+    for (const m of data.metrics) lines.push(`- ${m}`);
+  }
+
+  if (Array.isArray(data.departments) && data.departments.length) {
+    lines.push("\n### 🏢 Планы отделов на неделю");
+    for (const dep of data.departments) {
+      if (!Array.isArray(dep.people)) continue;
+      for (const p of dep.people) {
+        if (!p?.name) continue;
+        lines.push(`\n**${p.name}**`);
+        if (Array.isArray(p.focus) && p.focus.length) lines.push(`Фокус: ${p.focus.join(", ")}`);
+        if (Array.isArray(p.tasks) && p.tasks.length) lines.push(`Прочие: ${p.tasks.join(", ")}`);
+      }
     }
   }
 
-  // Append clean Forecasts list with links under a dedicated section
+  if (Array.isArray(data.clientActivity) && data.clientActivity.length) {
+    lines.push("\n### 💼 Активность с клиентами");
+    for (const a of data.clientActivity) {
+      if (!Array.isArray(a.meetings) || a.meetings.length === 0) continue;
+      lines.push(`\n**${a.employee}**`);
+      for (const m of a.meetings) {
+        const parts: string[] = [];
+        if (m.title) parts.push(m.title);
+        if (m.question) parts.push(`Вопрос: ${m.question}`);
+        if (m.result) parts.push(`Результат: ${m.result}`);
+        if (parts.length) lines.push(`- ${parts.join(" — ")}`);
+      }
+    }
+  }
+
+  if (Array.isArray(data.forecastsSummary) && data.forecastsSummary.length) {
+    lines.push("\n### 🔮 Форкасты отделов");
+    for (const f of data.forecastsSummary) lines.push(`- ${f}`);
+  }
+
+  if (Array.isArray(data.attention) && data.attention.length) {
+    lines.push("\n### ⚠️ Внимание требует");
+    for (const r of data.attention) lines.push(`- ${r}`);
+  }
+
+  // 3) Список конкретных форкастов с ссылками (за 7 дней)
   const forecastsRoot = runtimeConfig.notion.forecastsPageId();
   const list = await getForecastsListForLastDays(forecastsRoot, 7);
   if (list.length > 0) {
-    polished.push("\n### ФОРКАСТЫ ЗА 7 ДНЕЙ");
+    lines.push("\n### 🔗 Форкасты (ссылки)");
     for (const item of list) {
       const dateStr = item.date ? item.date.toISOString().slice(0, 10) : "";
-      if (item.url) polished.push(`- ${item.title} (${dateStr}) — ${item.url}`);
-      else polished.push(`- ${item.title} (${dateStr})`);
+      if (item.url) lines.push(`- ${item.title} (${dateStr}) — ${item.url}`);
+      else lines.push(`- ${item.title} (${dateStr})`);
     }
   }
 
-  return polished.join("\n");
+  return lines.join("\n");
 }
 
 export type LinearTasksPayload = {

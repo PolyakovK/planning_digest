@@ -55,6 +55,48 @@ export function buildWeeklyTasksExtractionPrompt(weeklyPlanningText: string): st
     }
   ]
 }
+
+export function buildStructuredDigestJsonPrompt(opts: {
+  weeklyPlanningText: string;
+  allMeetingsText: string;
+  forecastsText: string;
+}): string {
+  const { weeklyPlanningText, allMeetingsText, forecastsText } = opts;
+  return `Ты — аналитик, готовящий компактный еженедельный дайджест для руководства. На входе разрозненный текст из Notion.
+
+Требования к содержанию: четкая иерархия, бизнес-фокус, приоритизация, краткость, понятные всем термины. Извлекай ключевые бизнес-результаты, группируй по важности, переводя технические детали в бизнес-язык. Не придумывай данные.
+
+Верни строго JSON следующего формата (и только JSON, без комментариев):
+{
+  "highlights": ["3-5 главных достижения/решения недели, по 1 короткой фразе"],
+  "metrics": ["ключевые числовые показатели в формате Название: значение"],
+  "departments": [
+    {
+      "name": "Sales | BizDev | Project | Partner | CSM | Digital Sales | Finance",
+      "people": [
+        {
+          "name": "Имя Фамилия",
+          "focus": ["клиенты/направления на неделю (1-4)"],
+          "tasks": ["ключевые задачи (1-3)"]
+        }
+      ]
+    }
+  ],
+  "clientActivity": [
+    {
+      "employee": "Имя Фамилия",
+      "meetings": [
+        { "title": "Клиент или тема (дата)", "question": "главный вопрос", "result": "результат/след. шаг" }
+      ]
+    }
+  ],
+  "forecastsSummary": ["краткие выводы из форкастов (3-6 пунктов)"],
+  "attention": ["риски/блокеры — коротко"]
+}
+
+Источник данных:
+[WEEKLY]\n${weeklyPlanningText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
+}
 Если нет задач у сотрудника — не включай его. Текст источника ниже:\n\n${weeklyPlanningText}`;
 }
 
