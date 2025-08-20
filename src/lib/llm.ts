@@ -55,6 +55,8 @@ export function buildWeeklyTasksExtractionPrompt(weeklyPlanningText: string): st
     }
   ]
 }
+Если нет задач у сотрудника — не включай его. Текст источника ниже:\n\n${weeklyPlanningText}`;
+}
 
 export function buildStructuredDigestJsonPrompt(opts: {
   weeklyPlanningText: string;
@@ -96,8 +98,6 @@ export function buildStructuredDigestJsonPrompt(opts: {
 
 Источник данных:
 [WEEKLY]\n${weeklyPlanningText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
-}
-Если нет задач у сотрудника — не включай его. Текст источника ниже:\n\n${weeklyPlanningText}`;
 }
 
 
