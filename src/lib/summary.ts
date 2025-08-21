@@ -1,5 +1,5 @@
 import { runtimeConfig } from "@/lib/env";
-import { getLatestChildPageMarkdownByDate, getMeetingsRawForLastDays, getForecastsRawAggregate, getForecastsListForLastDays, getPageMarkdown } from "@/lib/notion";
+import { getLatestChildPageMarkdownByDate, getMeetingsRawForLastDays, getForecastsRawAggregate, getForecastsListForLastDays, getPageMarkdown, listChildPages } from "@/lib/notion";
 import { buildWeeklyDigestPrompt, buildWeeklyTasksExtractionPrompt, buildStructuredDigestJsonPrompt, generateText } from "@/lib/llm";
 
 export async function collectSourceTexts() {
@@ -10,6 +10,10 @@ export async function collectSourceTexts() {
   // Weekly Planning: возьмем последнюю по дате страницу внутри раздела
   const latestWeekly = await getLatestChildPageMarkdownByDate(weeklyPlanningRoot);
   const weeklyPlanningText = latestWeekly?.markdown ?? (await getPageMarkdown(weeklyPlanningRoot, 2));
+  const weeklyPages = await listChildPages(weeklyPlanningRoot);
+  const weeklyAllText = (
+    await Promise.all(weeklyPages.map((p) => getPageMarkdown(p.id, 1)))
+  ).join("\n\n");
 
   // Meetings: только последние 7 дней, агрегировано по владельцам
   const allMeetingsText = await getMeetingsRawForLastDays(meetingsRoot, 7);
@@ -17,14 +21,14 @@ export async function collectSourceTexts() {
   // Forecasts: только за последние 7 дней
   const forecastsText = await getForecastsRawAggregate(forecastsRoot, 7, 10);
 
-  return { weeklyPlanningText, allMeetingsText, forecastsText };
+  return { weeklyPlanningText, weeklyAllText, allMeetingsText, forecastsText };
 }
 
 export async function buildDigestMarkdown() {
-  const { weeklyPlanningText, allMeetingsText, forecastsText } = await collectSourceTexts();
+  const { weeklyPlanningText, weeklyAllText, allMeetingsText, forecastsText } = await collectSourceTexts();
   // 1) Структурируем данные в JSON
-  const jsonPrompt = buildStructuredDigestJsonPrompt({ weeklyPlanningText, allMeetingsText, forecastsText });
-  const jsonRaw = await generateText(jsonPrompt);
+  const jsonPrompt = buildStructuredDigestJsonPrompt({ weeklyAllText, weeklyLatestText: weeklyPlanningText, allMeetingsText, forecastsText });
+  const jsonRaw = await generateText(jsonPrompt, "gpt-5");
   let data: any;
   try { data = JSON.parse(jsonRaw); } catch { data = {}; }
 

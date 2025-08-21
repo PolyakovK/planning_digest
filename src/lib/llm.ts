@@ -6,12 +6,8 @@ function getOpenAI() {
 }
 const MODEL = runtimeConfig.openai.model();
 
-export async function generateText(input: string): Promise<string> {
-  if (MODEL !== "gpt-5-mini") {
-    // enforce required model choice
-    throw new Error("OPENAI_MODEL must be 'gpt-5-mini'");
-  }
-  const res = await getOpenAI().responses.create({ model: MODEL, input });
+export async function generateText(input: string, modelOverride?: string): Promise<string> {
+  const res = await getOpenAI().responses.create({ model: modelOverride || MODEL, input });
   return res.output_text as string;
 }
 
@@ -59,16 +55,21 @@ export function buildWeeklyTasksExtractionPrompt(weeklyPlanningText: string): st
 }
 
 export function buildStructuredDigestJsonPrompt(opts: {
-  weeklyPlanningText: string;
+  weeklyAllText: string; // все weekly-страницы
+  weeklyLatestText: string; // последняя страница weekly
   allMeetingsText: string;
   forecastsText: string;
 }): string {
-  const { weeklyPlanningText, allMeetingsText, forecastsText } = opts;
+  const { weeklyAllText, weeklyLatestText, allMeetingsText, forecastsText } = opts;
   return `Ты — аналитик, готовящий компактный еженедельный дайджест для руководства. На входе разрозненный текст из Notion.
 
 Требования к содержанию: четкая иерархия, бизнес-фокус, приоритизация, краткость, понятные всем термины. Извлекай ключевые бизнес-результаты, группируй по важности, переводя технические детали в бизнес-язык. Не придумывай данные.
 
-Верни строго JSON следующего формата (и только JSON, без комментариев). Для поля "highlights" используй данные как из итогов прошлой недели (Weekly Planning), так и из реально прошедших встреч за 7 дней (MEETINGS_7D), выбирая самое важное для бизнеса:
+Верни строго JSON следующего формата (и только JSON, без комментариев). 
+- "highlights" и "attention" формируй, анализируя ВСЕ источники: все Weekly, Meetings_7D и Forecasts_7D.
+- "departments" заполняй ТОЛЬКО по последнему Weekly (weeklyLatestText).
+- "clientActivity" формируй ТОЛЬКО по Meetings_7D.
+- "forecastsSummary" формируй ТОЛЬКО по Forecasts_7D.
 {
   "highlights": ["3-5 главных достижения/решения недели, по 1 короткой фразе"],
   "departments": [
@@ -96,7 +97,7 @@ export function buildStructuredDigestJsonPrompt(opts: {
 }
 
 Источник данных:
-[WEEKLY]\n${weeklyPlanningText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
+[WEEKLY_ALL]\n${weeklyAllText}\n\n[WEEKLY_LATEST]\n${weeklyLatestText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
 }
 
 
