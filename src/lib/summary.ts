@@ -27,7 +27,7 @@ export async function collectSourceTexts() {
 export async function buildDigestMarkdown() {
   const { weeklyPlanningText, weeklyAllText, allMeetingsText, forecastsText } = await collectSourceTexts();
   // 1) Структурируем данные в JSON
-  const jsonPrompt = buildStructuredDigestJsonPrompt({ weeklyAllText, weeklyLatestText: weeklyPlanningText, allMeetingsText, forecastsText });
+  const jsonPrompt = buildStructuredDigestJsonPrompt({ weeklyAllText: "", weeklyLatestText: weeklyPlanningText, allMeetingsText, forecastsText });
   const jsonRaw = await generateText(jsonPrompt, "gpt-5");
   let data: any;
   try { data = JSON.parse(jsonRaw); } catch { data = {}; }
@@ -84,6 +84,11 @@ export async function buildDigestMarkdown() {
 
   // Метрики недели удалены по требованиям — не выводим
 
+  if (Array.isArray(data.attention) && data.attention.length) {
+    lines.push("\n### ⚠️ Внимание требует");
+    for (const r of data.attention) lines.push(`- ${r}`);
+  }
+
   if (Array.isArray(data.departments) && data.departments.length) {
     lines.push("\n### 🏢 Планы отделов на неделю");
     for (const dep of data.departments) {
@@ -95,6 +100,11 @@ export async function buildDigestMarkdown() {
         if (Array.isArray(p.tasks) && p.tasks.length) lines.push(`Прочие: ${p.tasks.join(", ")}`);
       }
     }
+  }
+
+  if (Array.isArray(data.forecastsSummary) && data.forecastsSummary.length) {
+    lines.push("\n### 🔮 Форкасты отделов");
+    for (const f of data.forecastsSummary) lines.push(`- ${f}`);
   }
 
   if (Array.isArray(data.clientActivity) && data.clientActivity.length) {
@@ -110,16 +120,6 @@ export async function buildDigestMarkdown() {
         if (parts.length) lines.push(`- ${parts.join(" — ")}`);
       }
     }
-  }
-
-  if (Array.isArray(data.forecastsSummary) && data.forecastsSummary.length) {
-    lines.push("\n### 🔮 Форкасты отделов");
-    for (const f of data.forecastsSummary) lines.push(`- ${f}`);
-  }
-
-  if (Array.isArray(data.attention) && data.attention.length) {
-    lines.push("\n### ⚠️ Внимание требует");
-    for (const r of data.attention) lines.push(`- ${r}`);
   }
 
   return lines.join("\n");
