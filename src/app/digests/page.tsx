@@ -42,12 +42,6 @@ export default function DigestsPage() {
       <div style={{ color: '#6B7280', marginBottom: 20 }}>Сгенерируйте еженедельный дайджест и синхронизируйте задачи в Linear.</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Card
-          title="Синхронизировать задачи в Linear"
-          description="Создать/обновить задачи по последнему Weekly Planning. Дубликаты не создаются — описание дополняется."
-          actionLabel="Отправить задачи"
-          onClick={() => call('/api/linear/sync-weekly')}
-        />
-        <Card
           title="Сгенерировать дайджест недели"
           description="Создать новую страницу в разделе Дайджесты за текущую неделю. Берем встречи и форкасты только за 7 дней."
           actionLabel="Сформировать дайджест"

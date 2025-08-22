@@ -4,8 +4,6 @@ type RequiredEnv =
   | "FORECASTS_ROOT_PAGE_ID"
   | "DIGESTS_ROOT_PAGE_ID"
   | "OPENAI_API_KEY"
-  | "LINEAR_API_KEY"
-  | "LINEAR_WEEKLY_PROJECT_ID"
   | "WEEKLY_PLANNING_ROOT_PAGE_ID";
 
 export function getEnv(name: RequiredEnv | string, fallback?: string): string {
@@ -31,10 +29,6 @@ export const runtimeConfig = {
     apiKey: () => getEnv("OPENAI_API_KEY"), // TODO: Add to .env
     model: () => process.env.OPENAI_MODEL || "gpt-5-mini"
   },
-  linear: {
-    apiKey: () => getEnv("LINEAR_API_KEY"), // TODO: Add to .env
-    projectId: () => getEnv("LINEAR_WEEKLY_PROJECT_ID") // TODO: Add to .env
-  }
 };
 
 
