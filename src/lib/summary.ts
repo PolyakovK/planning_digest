@@ -88,31 +88,35 @@ export async function buildDigestMarkdown() {
   const today = new Date().toISOString().slice(0, 10);
   lines.push(`📊 Weekly Digest ${today}`);
 
-  const pad = (text?: string) => (text ? text : "");
-
-  lines.push("\n| **📋 ПРОШЛАЯ НЕДЕЛЯ** | **🎯 ТЕКУЩАЯ НЕДЕЛЯ** |\n|---|---|");
-
-  // Фокусы
-  const leftFocus = Array.isArray(data?.left?.focus) ? data.left.focus.map((x: string) => `• ${x}`).join("<br/>") : "";
-  const rightFocus = Array.isArray(data?.right?.focus) ? data.right.focus.map((x: string) => `• ${x}`).join("<br/>") : "";
-  lines.push(`| **🎯 Фокус прошлой недели** | **🎯 Фокус этой недели** |`);
-  lines.push(`| ${pad(leftFocus)} | ${pad(rightFocus)} |`);
-  lines.push(`|  |  |`);
-
-  // Итоги/Планы отделов
-  lines.push(`| **🏢 Итоги отделов** | **🏢 Планы отделов** |`);
+  // Для Notion избежим markdown-таблиц — отрисуем колонками через toggle + child columns
+  const buildList = (items?: string[]) => (Array.isArray(items) ? items.map((x) => `- ${x}`).join("\n") : "");
   const order = ["CRO","Sales","BizDev","Digital Sales","Finance","Project Manager","CSM","Partner","Rev Operations","Marketing"];
+
+  // Фокус
+  lines.push("\n### 🎯 Фокус прошлой недели / этой недели");
+  lines.push("<columns>");
+  lines.push(buildList(data?.left?.focus));
+  lines.push("<split/>");
+  lines.push(buildList(data?.right?.focus));
+  lines.push("</columns>");
+
+  // Отделы
+  lines.push("\n### 🏢 Итоги отделов / Планы отделов");
   for (const dep of order) {
     const leftDep = (data?.left?.departments || []).find((d: any) => d?.name === dep);
     const rightDep = (data?.right?.departments || []).find((d: any) => d?.name === dep);
-    const leftPeople = Array.isArray(leftDep?.people) ? leftDep.people.map((p: any) => `• ${normalizeName(p.name)}: ${p.summary}`).join("<br/>") : "";
-    const rightPeople = Array.isArray(rightDep?.people) ? rightDep.people.map((p: any) => `• ${normalizeName(p.name)}: ${p.summary}`).join("<br/>") : "";
-    lines.push(`| **${dep}** | **${dep}** |`);
-    lines.push(`| ${pad(leftPeople)} | ${pad(rightPeople)} |`);
+    const leftPeople = Array.isArray(leftDep?.people) ? leftDep.people.map((p: any) => `- ${normalizeName(p.name)}: ${p.summary}`).join("\n") : "";
+    const rightPeople = Array.isArray(rightDep?.people) ? rightDep.people.map((p: any) => `- ${normalizeName(p.name)}: ${p.summary}`).join("\n") : "";
+    lines.push(`\n**${dep}**`);
+    lines.push("<columns>");
+    lines.push(leftPeople);
+    lines.push("<split/>");
+    lines.push(rightPeople);
+    lines.push("</columns>");
   }
 
   // Встречи
-  lines.push(`| **💼 Прошедшие встречи** | **💼 Запланированные встречи** |`);
+  lines.push("\n### 💼 Прошедшие встречи / Запланированные встречи");
   const leftMeet = Array.isArray(data?.left?.meetings) ? data.left.meetings : [];
   const rightMeet = Array.isArray(data?.right?.meetings) ? data.right.meetings : [];
   const maxRows = Math.max(leftMeet.length, rightMeet.length);
@@ -121,10 +125,18 @@ export async function buildDigestMarkdown() {
     const r = rightMeet[i];
     const lTitle = l?.employee ? `**${normalizeName(l.employee)}**` : "";
     const rTitle = r?.employee ? `**${normalizeName(r.employee)}**` : "";
-    lines.push(`| ${pad(lTitle)} | ${pad(rTitle)} |`);
-    const lItems = Array.isArray(l?.items) ? l.items.map((x: any) => `• ${x.client}: ${x.status}`).join("<br/>") : "";
-    const rItems = Array.isArray(r?.items) ? r.items.map((x: any) => `• ${x.client}: ${x.status}`).join("<br/>") : "";
-    lines.push(`| ${pad(lItems)} | ${pad(rItems)} |`);
+    lines.push("<columns>");
+    lines.push(lTitle);
+    lines.push("<split/>");
+    lines.push(rTitle);
+    lines.push("</columns>");
+    const lItems = Array.isArray(l?.items) ? l.items.map((x: any) => `- ${x.client}: ${x.status}`).join("\n") : "";
+    const rItems = Array.isArray(r?.items) ? r.items.map((x: any) => `- ${x.client}: ${x.status}`).join("\n") : "";
+    lines.push("<columns>");
+    lines.push(lItems);
+    lines.push("<split/>");
+    lines.push(rItems);
+    lines.push("</columns>");
   }
 
   return lines.join("\n");

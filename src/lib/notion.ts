@@ -74,6 +74,15 @@ export async function appendMarkdownToPage(pageId: string, markdown: string) {
   }
 }
 
+export async function appendBlocksToPage(pageId: string, children: any[]) {
+  for (let i = 0; i < children.length; i += 50) {
+    await getNotion().blocks.children.append({
+      block_id: pageId,
+      children: children.slice(i, i + 50) as any
+    });
+  }
+}
+
 export async function createChildPage(parentPageId: string, title: string): Promise<string> {
   const page = await getNotion().pages.create({
     parent: { page_id: parentPageId },
@@ -154,46 +163,71 @@ export function markdown_to_notion_blocks(markdown: string): Array<any> {
     return rich.length ? rich : [{ type: "text", text: { content: text } }];
   }
 
+  function parsePlainLines(arr: string[]): any[] {
+    const out: any[] = [];
+    for (const raw of arr) {
+      const line = raw.trimEnd();
+      if (!line.trim()) continue;
+      const h = line.match(/^(#{1,3})\s+(.*)$/);
+      if (h) {
+        const level = h[1].length;
+        const text = h[2];
+        const key = (level === 1 ? "heading_1" : level === 2 ? "heading_2" : "heading_3") as
+          | "heading_1"
+          | "heading_2"
+          | "heading_3";
+        out.push({ object: "block", type: key, [key]: { rich_text: toRich(text) } });
+        continue;
+      }
+      const li = line.match(/^[-•]\s+(.*)$/);
+      if (li) {
+        out.push({ object: "block", type: "bulleted_list_item", bulleted_list_item: { rich_text: toRich(li[1]) } });
+        continue;
+      }
+      out.push({ object: "block", type: "paragraph", paragraph: { rich_text: toRich(line) } });
+    }
+    return out;
+  }
+
   const blocks: any[] = [];
-  for (const raw of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
     const line = raw.trimEnd();
     if (!line.trim()) {
       // пустые строки — пропускаем
       continue;
     }
 
-    const h = line.match(/^(#{1,3})\s+(.*)$/);
-    if (h) {
-      const level = h[1].length;
-      const text = h[2];
-      const key = (level === 1 ? "heading_1" : level === 2 ? "heading_2" : "heading_3") as
-        | "heading_1"
-        | "heading_2"
-        | "heading_3";
+    // Custom columns syntax: <columns> ... <split/> ... </columns>
+    if (line.trim() === "<columns>") {
+      const leftLines: string[] = [];
+      const rightLines: string[] = [];
+      let side: "left" | "right" = "left";
+      i++;
+      for (; i < lines.length; i++) {
+        const cur = lines[i];
+        const t = cur.trim();
+        if (t === "<split/>") { side = "right"; continue; }
+        if (t === "</columns>") break;
+        if (side === "left") leftLines.push(cur); else rightLines.push(cur);
+      }
+      const leftChildren = parsePlainLines(leftLines);
+      const rightChildren = parsePlainLines(rightLines);
       blocks.push({
         object: "block",
-        type: key,
-        [key]: { rich_text: toRich(text) }
+        type: "column_list",
+        column_list: {
+          children: [
+            { object: "block", type: "column", column: { children: leftChildren } },
+            { object: "block", type: "column", column: { children: rightChildren } }
+          ]
+        }
       });
       continue;
     }
 
-    const li = line.match(/^[-•]\s+(.*)$/);
-    if (li) {
-      blocks.push({
-        object: "block",
-        type: "bulleted_list_item",
-        bulleted_list_item: { rich_text: toRich(li[1]) }
-      });
-      continue;
-    }
-
-    // paragraph fallback
-    blocks.push({
-      object: "block",
-      type: "paragraph",
-      paragraph: { rich_text: toRich(line) }
-    });
+    // default plain handling
+    blocks.push(...parsePlainLines([line]));
   }
 
   return blocks;
