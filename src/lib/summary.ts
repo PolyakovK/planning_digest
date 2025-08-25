@@ -92,12 +92,16 @@ export async function buildDigestMarkdown() {
   if (Array.isArray(data.departments) && data.departments.length) {
     lines.push("\n### 🏢 Планы отделов на неделю");
     for (const dep of data.departments) {
-      if (!Array.isArray(dep.people)) continue;
+      if (!Array.isArray(dep.people) || dep.people.length === 0) continue;
+      // Заголовок отдела
+      if (dep.name) lines.push(`\n**${dep.name}**`);
+      // Сотрудники как пункты списка в формате "- Имя: Фокус ...; Задачи ..."
       for (const p of dep.people) {
         if (!p?.name) continue;
-        lines.push(`\n**${p.name}**`);
-        if (Array.isArray(p.focus) && p.focus.length) lines.push(`Фокус: ${p.focus.join(", ")}`);
-        if (Array.isArray(p.tasks) && p.tasks.length) lines.push(`Прочие: ${p.tasks.join(", ")}`);
+        const focus = Array.isArray(p.focus) && p.focus.length ? `Фокус: ${p.focus.join(", ")}` : "";
+        const tasks = Array.isArray(p.tasks) && p.tasks.length ? `Задачи: ${p.tasks.join(", ")}` : "";
+        const details = [focus, tasks].filter(Boolean).join("; ");
+        lines.push(`- ${p.name}${details ? ": " + details : ""}`);
       }
     }
   }
