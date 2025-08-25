@@ -77,6 +77,12 @@ export async function buildDigestMarkdown() {
   const today = new Date().toISOString().slice(0, 10);
   lines.push(`📊 Weekly Digest ${today}`);
 
+  // TL;DR
+  if (Array.isArray(data.tldr) && data.tldr.length) {
+    lines.push("\n### 🔥 TL;DR");
+    for (const x of data.tldr.slice(0, 3)) lines.push(`- ${x}`);
+  }
+
   if (Array.isArray(data.highlights) && data.highlights.length) {
     lines.push("\n### 🎯 Ключевые итоги недели");
     for (const h of data.highlights) lines.push(`- ${h}`);
@@ -84,9 +90,16 @@ export async function buildDigestMarkdown() {
 
   // Метрики недели удалены по требованиям — не выводим
 
-  if (Array.isArray(data.attention) && data.attention.length) {
-    lines.push("\n### ⚠️ Внимание требует");
-    for (const r of data.attention) lines.push(`- ${r}`);
+  // Приоритизация рисков
+  if (data.attention && (Array.isArray(data.attention.critical) || Array.isArray(data.attention.important))) {
+    if (Array.isArray(data.attention.critical) && data.attention.critical.length) {
+      lines.push("\n### ⚠️ Критично");
+      for (const r of data.attention.critical) lines.push(`- ${r}`);
+    }
+    if (Array.isArray(data.attention.important) && data.attention.important.length) {
+      lines.push("\n### ⚠️ Важно");
+      for (const r of data.attention.important) lines.push(`- ${r}`);
+    }
   }
 
   if (Array.isArray(data.departments) && data.departments.length) {
@@ -106,22 +119,28 @@ export async function buildDigestMarkdown() {
     }
   }
 
-  if (Array.isArray(data.forecastsSummary) && data.forecastsSummary.length) {
-    lines.push("\n### 🔮 Форкасты отделов");
-    for (const f of data.forecastsSummary) lines.push(`- ${f}`);
+  if (data.forecasts && (Array.isArray(data.forecasts.numbers) || Array.isArray(data.forecasts.launches) || Array.isArray(data.forecasts.risks))) {
+    lines.push("\n### 🔮 Форкасты");
+    if (Array.isArray(data.forecasts.numbers) && data.forecasts.numbers.length) {
+      lines.push("**Цифры:** " + data.forecasts.numbers.join(", "));
+    }
+    if (Array.isArray(data.forecasts.launches) && data.forecasts.launches.length) {
+      lines.push("**Запуски:** " + data.forecasts.launches.join(", "));
+    }
+    if (Array.isArray(data.forecasts.risks) && data.forecasts.risks.length) {
+      lines.push("**Риски:** " + data.forecasts.risks.join(", "));
+    }
   }
 
   if (Array.isArray(data.clientActivity) && data.clientActivity.length) {
     lines.push("\n### 💼 Активность с клиентами");
     for (const a of data.clientActivity) {
-      if (!Array.isArray(a.meetings) || a.meetings.length === 0) continue;
+      if (!Array.isArray(a.clients) || a.clients.length === 0) continue;
       lines.push(`\n**${a.employee}**`);
-      for (const m of a.meetings) {
-        const parts: string[] = [];
-        if (m.title) parts.push(m.title);
-        if (m.question) parts.push(`Вопрос: ${m.question}`);
-        if (m.result) parts.push(`Результат: ${m.result}`);
-        if (parts.length) lines.push(`- ${parts.join(" — ")}`);
+      for (const c of a.clients) {
+        if (!c?.name) continue;
+        const status = c?.status ? `: ${c.status}` : "";
+        lines.push(`- ${c.name}${status}`);
       }
     }
   }
