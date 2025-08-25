@@ -77,6 +77,12 @@ export async function buildDigestMarkdown() {
   const today = new Date().toISOString().slice(0, 10);
   lines.push(`📊 Weekly Digest ${today}`);
 
+  const shorten = (text: string, maxWords = 7) => {
+    if (!text) return "";
+    const words = text.replace(/\s+/g, " ").trim().split(" ");
+    return words.length > maxWords ? words.slice(0, maxWords).join(" ") + "…" : words.join(" ");
+  };
+
   // TL;DR
   if (Array.isArray(data.tldr) && data.tldr.length) {
     lines.push("\n### 🔥 TL;DR");
@@ -135,12 +141,25 @@ export async function buildDigestMarkdown() {
   if (Array.isArray(data.clientActivity) && data.clientActivity.length) {
     lines.push("\n### 💼 Активность с клиентами");
     for (const a of data.clientActivity) {
-      if (!Array.isArray(a.clients) || a.clients.length === 0) continue;
+      const hasClients = Array.isArray(a.clients) && a.clients.length > 0;
+      const hasMeetings = Array.isArray(a.meetings) && a.meetings.length > 0;
+      if (!hasClients && !hasMeetings) continue;
       lines.push(`\n**${a.employee}**`);
-      for (const c of a.clients) {
-        if (!c?.name) continue;
-        const status = c?.status ? `: ${c.status}` : "";
-        lines.push(`- ${c.name}${status}`);
+      if (hasClients) {
+        for (const c of a.clients) {
+          if (!c?.name) continue;
+          const status = c?.status ? `: ${shorten(String(c.status))}` : "";
+          lines.push(`- ${c.name}${status}`);
+        }
+      } else if (hasMeetings) {
+        for (const m of a.meetings) {
+          const rawTitle: string = String(m?.title || "");
+          let client = rawTitle.split(" x ")[0] || rawTitle;
+          client = client.split(" — ")[0].split(":")[0].trim();
+          const base = String(m?.result || m?.question || "");
+          const status = shorten(base);
+          if (client) lines.push(`- ${client}${status ? ": " + status : ""}`);
+        }
       }
     }
   }
