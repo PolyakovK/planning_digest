@@ -92,52 +92,43 @@ export async function buildDigestMarkdown() {
   const buildList = (items?: string[]) => (Array.isArray(items) ? items.map((x) => `- ${x}`).join("\n") : "");
   const order = ["CRO","Sales","BizDev","Digital Sales","Finance","Project Manager","CSM","Partner","Rev Operations","Marketing"];
 
-  // Фокус
-  lines.push("\n### 🎯 Фокус прошлой недели / этой недели");
-  lines.push("<columns>");
-  lines.push(buildList(data?.left?.focus));
-  lines.push("<split/>");
-  lines.push(buildList(data?.right?.focus));
-  lines.push("</columns>");
+  // Фокус (таблица)
+  lines.push(`\n<table title="🎯 Фокус">`);
+  lines.push(`<headers>Прошлая неделя|Текущая неделя</headers>`);
+  const leftFocusRows = Array.isArray(data?.left?.focus) ? data.left.focus : [];
+  const rightFocusRows = Array.isArray(data?.right?.focus) ? data.right.focus : [];
+  const maxFocus = Math.max(leftFocusRows.length, rightFocusRows.length);
+  for (let i = 0; i < maxFocus; i++) {
+    lines.push(`<row>${leftFocusRows[i] || ""}|${rightFocusRows[i] || ""}</row>`);
+  }
+  lines.push(`</table>`);
 
-  // Отделы
-  lines.push("\n### 🏢 Итоги отделов / Планы отделов");
+  // Отделы (таблица на отдел)
+  lines.push(`\n<table title="🏢 Итоги и планы">`);
+  lines.push(`<headers>Итоги отделов|Планы отделов</headers>`);
   for (const dep of order) {
     const leftDep = (data?.left?.departments || []).find((d: any) => d?.name === dep);
     const rightDep = (data?.right?.departments || []).find((d: any) => d?.name === dep);
-    const leftPeople = Array.isArray(leftDep?.people) ? leftDep.people.map((p: any) => `- ${normalizeName(p.name)}: ${p.summary}`).join("\n") : "";
-    const rightPeople = Array.isArray(rightDep?.people) ? rightDep.people.map((p: any) => `- ${normalizeName(p.name)}: ${p.summary}`).join("\n") : "";
-    lines.push(`\n**${dep}**`);
-    lines.push("<columns>");
-    lines.push(leftPeople);
-    lines.push("<split/>");
-    lines.push(rightPeople);
-    lines.push("</columns>");
+    const leftPeople = Array.isArray(leftDep?.people) ? leftDep.people.map((p: any) => `${normalizeName(p.name)}: ${p.summary}`).join("; ") : "";
+    const rightPeople = Array.isArray(rightDep?.people) ? rightDep.people.map((p: any) => `${normalizeName(p.name)}: ${p.summary}`).join("; ") : "";
+    if (leftPeople || rightPeople) lines.push(`<row>${dep}: ${leftPeople}|${dep}: ${rightPeople}</row>`);
   }
+  lines.push(`</table>`);
 
-  // Встречи
-  lines.push("\n### 💼 Прошедшие встречи / Запланированные встречи");
+  // Встречи (таблица)
   const leftMeet = Array.isArray(data?.left?.meetings) ? data.left.meetings : [];
   const rightMeet = Array.isArray(data?.right?.meetings) ? data.right.meetings : [];
-  const maxRows = Math.max(leftMeet.length, rightMeet.length);
-  for (let i = 0; i < maxRows; i++) {
+  lines.push(`\n<table title="💼 Встречи">`);
+  lines.push(`<headers>Прошедшие встречи|Запланированные встречи</headers>`);
+  const maxMeet = Math.max(leftMeet.length, rightMeet.length);
+  for (let i = 0; i < maxMeet; i++) {
     const l = leftMeet[i];
     const r = rightMeet[i];
-    const lTitle = l?.employee ? `**${normalizeName(l.employee)}**` : "";
-    const rTitle = r?.employee ? `**${normalizeName(r.employee)}**` : "";
-    lines.push("<columns>");
-    lines.push(lTitle);
-    lines.push("<split/>");
-    lines.push(rTitle);
-    lines.push("</columns>");
-    const lItems = Array.isArray(l?.items) ? l.items.map((x: any) => `- ${x.client}: ${x.status}`).join("\n") : "";
-    const rItems = Array.isArray(r?.items) ? r.items.map((x: any) => `- ${x.client}: ${x.status}`).join("\n") : "";
-    lines.push("<columns>");
-    lines.push(lItems);
-    lines.push("<split/>");
-    lines.push(rItems);
-    lines.push("</columns>");
+    const lStr = l ? `${normalizeName(l.employee)} — ${(l.items||[]).map((x:any)=>`${x.client}: ${x.status}`).join("; ")}` : "";
+    const rStr = r ? `${normalizeName(r.employee)} — ${(r.items||[]).map((x:any)=>`${x.client}: ${x.status}`).join("; ")}` : "";
+    lines.push(`<row>${lStr}|${rStr}</row>`);
   }
+  lines.push(`</table>`);
 
   return lines.join("\n");
 }

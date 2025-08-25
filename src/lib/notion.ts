@@ -198,30 +198,86 @@ export function markdown_to_notion_blocks(markdown: string): Array<any> {
       continue;
     }
 
+    // Simple table DSL:
+    // <table title="Фокус"><headers>Лево|Право</headers><row>l|r</row>...</table>
+    if (line.startsWith("<table")) {
+      const titleMatch = line.match(/title=\"([^\"]*)\"/);
+      const title = titleMatch?.[1] ?? "";
+      let leftHeader = "";
+      let rightHeader = "";
+      const rows: Array<{ left: string; right: string }> = [];
+      // consume until </table>
+      i++;
+      for (; i < lines.length; i++) {
+        const cur = lines[i].trim();
+        if (cur.startsWith("<headers>")) {
+          const inner = cur.replace(/^<headers>/, "").replace(/<\/headers>$/, "");
+          const parts = inner.split("|");
+          leftHeader = (parts[0] || "").trim();
+          rightHeader = (parts[1] || "").trim();
+          continue;
+        }
+        if (cur.startsWith("<row>")) {
+          const inner = cur.replace(/^<row>/, "").replace(/<\/row>$/, "");
+          const parts = inner.split("|");
+          rows.push({ left: (parts[0] || "").trim(), right: (parts[1] || "").trim() });
+          continue;
+        }
+        if (cur === "</table>") break;
+      }
+      if (title) {
+        blocks.push({ object: "block", type: "heading_3", heading_3: { rich_text: toRich(title) } });
+      }
+      const tableChildren: any[] = [];
+      // header row
+      tableChildren.push({
+        object: "block",
+        type: "table_row",
+        table_row: { cells: [[{ type: "text", text: { content: leftHeader || "" } }], [{ type: "text", text: { content: rightHeader || "" } }]] }
+      });
+      for (const r of rows) {
+        tableChildren.push({
+          object: "block",
+          type: "table_row",
+          table_row: { cells: [[{ type: "text", text: { content: r.left } }], [{ type: "text", text: { content: r.right } }]] }
+        });
+      }
+      blocks.push({
+        object: "block",
+        type: "table",
+        table: { has_column_header: true, has_row_header: false, table_width: 2, children: tableChildren }
+      });
+      continue;
+    }
+
     // Custom columns syntax: <columns> ... <split/> ... </columns>
     if (line.trim() === "<columns>") {
-      const leftLines: string[] = [];
-      const rightLines: string[] = [];
-      let side: "left" | "right" = "left";
+      const seg0: string[] = [];
+      const seg1: string[] = [];
+      const seg2: string[] = [];
+      let segIndex = 0; // 0=left,1=middle(optional),2=right
       i++;
       for (; i < lines.length; i++) {
         const cur = lines[i];
         const t = cur.trim();
-        if (t === "<split/>") { side = "right"; continue; }
+        if (t === "<split/>") { segIndex = 2; continue; }
+        if (t === "<vsep/>") { segIndex = 1; continue; }
         if (t === "</columns>") break;
-        if (side === "left") leftLines.push(cur); else rightLines.push(cur);
+        if (segIndex === 0) seg0.push(cur);
+        else if (segIndex === 1) seg1.push(cur);
+        else seg2.push(cur);
       }
-      const leftChildren = parsePlainLines(leftLines);
-      const rightChildren = parsePlainLines(rightLines);
+      const cols: any[] = [];
+      const leftChildren = parsePlainLines(seg0);
+      if (leftChildren.length) cols.push({ object: "block", type: "column", column: { children: leftChildren } });
+      const midChildren = parsePlainLines(seg1);
+      if (midChildren.length) cols.push({ object: "block", type: "column", column: { children: midChildren } });
+      const rightChildren = parsePlainLines(seg2);
+      if (rightChildren.length) cols.push({ object: "block", type: "column", column: { children: rightChildren } });
       blocks.push({
         object: "block",
         type: "column_list",
-        column_list: {
-          children: [
-            { object: "block", type: "column", column: { children: leftChildren } },
-            { object: "block", type: "column", column: { children: rightChildren } }
-          ]
-        }
+        column_list: { children: cols }
       });
       continue;
     }
