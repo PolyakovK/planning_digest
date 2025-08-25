@@ -1,6 +1,6 @@
 import { runtimeConfig } from "@/lib/env";
 import { getLatestChildPageMarkdownByDate, getMeetingsRawForLastDays, getForecastsRawAggregate, getForecastsListForLastDays, getPageMarkdown, listChildPages } from "@/lib/notion";
-import { buildWeeklyDigestPrompt, buildWeeklyTasksExtractionPrompt, buildStructuredDigestJsonPrompt, generateText } from "@/lib/llm";
+import { buildTwoColumnDigestJsonPrompt, buildWeeklyTasksExtractionPrompt, generateText } from "@/lib/llm";
 
 export async function collectSourceTexts() {
   const weeklyPlanningRoot = runtimeConfig.notion.weeklyPlanningPageId();
@@ -26,8 +26,19 @@ export async function collectSourceTexts() {
 
 export async function buildDigestMarkdown() {
   const { weeklyPlanningText, weeklyAllText, allMeetingsText, forecastsText } = await collectSourceTexts();
-  // 1) Структурируем данные в JSON
-  const jsonPrompt = buildStructuredDigestJsonPrompt({ weeklyAllText, weeklyLatestText: weeklyPlanningText, allMeetingsText, forecastsText });
+  // Получаем предыдущий дайджест из корневой страницы дайджестов
+  const digestRoot = runtimeConfig.digest.targetPageId();
+  const prev = await getLatestChildPageMarkdownByDate(digestRoot);
+  const previousDigestText = prev?.markdown ?? "";
+
+  // 1) Структурируем данные в JSON (двухколоночный)
+  const jsonPrompt = buildTwoColumnDigestJsonPrompt({
+    previousDigestText,
+    weeklyLatestText: weeklyPlanningText,
+    weeklyAllText,
+    allMeetingsText,
+    forecastsText
+  });
   const jsonRaw = await generateText(jsonPrompt, "gpt-5");
   let data: any;
   try { data = JSON.parse(jsonRaw); } catch { data = {}; }
@@ -72,70 +83,48 @@ export async function buildDigestMarkdown() {
     data.clientActivity = Object.values(merged);
   }
 
-  // 2) Рендерим Markdown с визуальной структурой и эмодзи
+  // 2) Рендерим Markdown: таблица 2 колонки
   const lines: string[] = [];
   const today = new Date().toISOString().slice(0, 10);
   lines.push(`📊 Weekly Digest ${today}`);
 
-  const shorten = (text: string, maxWords = 7) => {
-    if (!text) return "";
-    const words = text.replace(/\s+/g, " ").trim().split(" ");
-    return words.length > maxWords ? words.slice(0, maxWords).join(" ") + "…" : words.join(" ");
-  };
+  const pad = (text?: string) => (text ? text : "");
 
-  // Статус недели
-  if (Array.isArray(data.weekStatus) && data.weekStatus.length) {
-    lines.push("\n### 📋 Статус недели");
-    for (const s of data.weekStatus) lines.push(`- ${s}`);
+  lines.push("\n| **📋 ПРОШЛАЯ НЕДЕЛЯ** | **🎯 ТЕКУЩАЯ НЕДЕЛЯ** |\n|---|---|");
+
+  // Фокусы
+  const leftFocus = Array.isArray(data?.left?.focus) ? data.left.focus.map((x: string) => `• ${x}`).join("<br/>") : "";
+  const rightFocus = Array.isArray(data?.right?.focus) ? data.right.focus.map((x: string) => `• ${x}`).join("<br/>") : "";
+  lines.push(`| **🎯 Фокус прошлой недели** | **🎯 Фокус этой недели** |`);
+  lines.push(`| ${pad(leftFocus)} | ${pad(rightFocus)} |`);
+  lines.push(`|  |  |`);
+
+  // Итоги/Планы отделов
+  lines.push(`| **🏢 Итоги отделов** | **🏢 Планы отделов** |`);
+  const order = ["CRO","Sales","BizDev","Digital Sales","Finance","Project Manager","CSM","Partner","Rev Operations","Marketing"];
+  for (const dep of order) {
+    const leftDep = (data?.left?.departments || []).find((d: any) => d?.name === dep);
+    const rightDep = (data?.right?.departments || []).find((d: any) => d?.name === dep);
+    const leftPeople = Array.isArray(leftDep?.people) ? leftDep.people.map((p: any) => `• ${normalizeName(p.name)}: ${p.summary}`).join("<br/>") : "";
+    const rightPeople = Array.isArray(rightDep?.people) ? rightDep.people.map((p: any) => `• ${normalizeName(p.name)}: ${p.summary}`).join("<br/>") : "";
+    lines.push(`| **${dep}** | **${dep}** |`);
+    lines.push(`| ${pad(leftPeople)} | ${pad(rightPeople)} |`);
   }
 
-  // Метрики недели удалены по требованиям — не выводим
-
-  // Убрали отдельные риски/форкасты по новой структуре
-
-  if (Array.isArray(data.departments) && data.departments.length) {
-    lines.push("\n### 🏢 Планы отделов на неделю");
-    for (const dep of data.departments) {
-      if (!Array.isArray(dep.people) || dep.people.length === 0) continue;
-      // Заголовок отдела
-      if (dep.name) lines.push(`\n**${dep.name}**`);
-      // Сотрудники как пункты списка в формате "- Имя: Фокус ...; Задачи ..."
-      for (const p of dep.people) {
-        if (!p?.name) continue;
-        const focus = Array.isArray(p.focus) && p.focus.length ? `Фокус: ${p.focus.join(", ")}` : "";
-        const tasks = Array.isArray(p.tasks) && p.tasks.length ? `Задачи: ${p.tasks.join(", ")}` : "";
-        const details = [focus, tasks].filter(Boolean).join("; ");
-        lines.push(`- ${p.name}${details ? ": " + details : ""}`);
-      }
-    }
-  }
-
-  // Форкасты скрыты по новой структуре
-
-  if (Array.isArray(data.keyMeetings) && data.keyMeetings.length) {
-    lines.push("\n### 💼 Ключевые встречи");
-    for (const a of data.keyMeetings) {
-      const hasClients = Array.isArray(a.clients) && a.clients.length > 0;
-      const hasMeetings = Array.isArray(a.meetings) && a.meetings.length > 0;
-      if (!hasClients && !hasMeetings) continue;
-      lines.push(`\n**${a.employee}**`);
-      if (hasClients) {
-        for (const c of a.clients) {
-          if (!c?.name) continue;
-          const status = c?.status ? `: ${shorten(String(c.status))}` : "";
-          lines.push(`- ${c.name}${status}`);
-        }
-      } else if (hasMeetings) {
-        for (const m of a.meetings) {
-          const rawTitle: string = String(m?.title || "");
-          let client = rawTitle.split(" x ")[0] || rawTitle;
-          client = client.split(" — ")[0].split(":")[0].trim();
-          const base = String(m?.result || m?.question || "");
-          const status = shorten(base);
-          if (client) lines.push(`- ${client}${status ? ": " + status : ""}`);
-        }
-      }
-    }
+  // Встречи
+  lines.push(`| **💼 Прошедшие встречи** | **💼 Запланированные встречи** |`);
+  const leftMeet = Array.isArray(data?.left?.meetings) ? data.left.meetings : [];
+  const rightMeet = Array.isArray(data?.right?.meetings) ? data.right.meetings : [];
+  const maxRows = Math.max(leftMeet.length, rightMeet.length);
+  for (let i = 0; i < maxRows; i++) {
+    const l = leftMeet[i];
+    const r = rightMeet[i];
+    const lTitle = l?.employee ? `**${normalizeName(l.employee)}**` : "";
+    const rTitle = r?.employee ? `**${normalizeName(r.employee)}**` : "";
+    lines.push(`| ${pad(lTitle)} | ${pad(rTitle)} |`);
+    const lItems = Array.isArray(l?.items) ? l.items.map((x: any) => `• ${x.client}: ${x.status}`).join("<br/>") : "";
+    const rItems = Array.isArray(r?.items) ? r.items.map((x: any) => `• ${x.client}: ${x.status}`).join("<br/>") : "";
+    lines.push(`| ${pad(lItems)} | ${pad(rItems)} |`);
   }
 
   return lines.join("\n");

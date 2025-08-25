@@ -135,4 +135,33 @@ export function buildStructuredDigestJsonPrompt(opts: {
 [WEEKLY_ALL]\n${weeklyAllText}\n\n[WEEKLY_LATEST] \n${weeklyLatestText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
 }
 
+export function buildTwoColumnDigestJsonPrompt(opts: {
+  previousDigestText: string; // предыдущий дайджест (основной источник для левой колонки)
+  weeklyLatestText: string; // последний Weekly (основной источник для правой колонки)
+  weeklyAllText: string; // вспомогательно
+  allMeetingsText: string; // последние 7 дней
+  forecastsText: string; // последние 7 дней
+}): string {
+  const { previousDigestText, weeklyLatestText, weeklyAllText, allMeetingsText, forecastsText } = opts;
+  return `Ты — аналитик. Сформируй ДВУХКОЛОНОЧНЫЙ дайджест по структуре ниже. Ничего не выдумывай, используй только источники.
+
+Верни строго JSON:
+{
+  "left": {
+    "focus": ["что было фокусом прошлой недели (1-5)"],
+    "departments": [ { "name": "CRO|Sales|BizDev|Digital Sales|Finance|Project Manager|CSM|Partner|Rev Operations|Marketing", "people": [ { "name": "Имя", "summary": "что сделал/проблемы одной строкой" } ] } ],
+    "meetings": [ { "employee": "Имя", "items": [ { "client": "Клиент", "status": "результат 3-5 слов" } ] } ]
+  },
+  "right": {
+    "focus": ["фокус текущей недели (1-5)"],
+    "departments": [ { "name": "CRO|Sales|BizDev|Digital Sales|Finance|Project Manager|CSM|Partner|Rev Operations|Marketing", "people": [ { "name": "Имя", "summary": "задачи одной строкой" } ] } ],
+    "meetings": [ { "employee": "Имя", "items": [ { "client": "Клиент", "status": "цель/ожидаемый результат 3-5 слов" } ] } ]
+  }
+}
+
+Источники для левой колонки: ПРЕЖДЕ ВСЕГО предыдущий дайджест, можно дополнять фактами из Weekly_ALL, Meetings_7D, Forecasts_7D.
+Источники для правой колонки: ПРЕЖДЕ ВСЕГО последний Weekly. Для встреч правой колонки используй планы/упоминания будущих встреч из Weekly; при отсутствии — оставь пусто.
+
+[PREV_DIGEST]\n${previousDigestText}\n\n[WEEKLY_LATEST]\n${weeklyLatestText}\n\n[WEEKLY_ALL]\n${weeklyAllText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
+}
 
