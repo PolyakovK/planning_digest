@@ -27,7 +27,7 @@ export async function collectSourceTexts() {
 export async function buildDigestMarkdown() {
   const { weeklyPlanningText, weeklyAllText, allMeetingsText, forecastsText } = await collectSourceTexts();
   // 1) Структурируем данные в JSON
-  const jsonPrompt = buildStructuredDigestJsonPrompt({ weeklyAllText: "", weeklyLatestText: weeklyPlanningText, allMeetingsText, forecastsText });
+  const jsonPrompt = buildStructuredDigestJsonPrompt({ weeklyAllText, weeklyLatestText: weeklyPlanningText, allMeetingsText, forecastsText });
   const jsonRaw = await generateText(jsonPrompt, "gpt-5");
   let data: any;
   try { data = JSON.parse(jsonRaw); } catch { data = {}; }
@@ -83,30 +83,15 @@ export async function buildDigestMarkdown() {
     return words.length > maxWords ? words.slice(0, maxWords).join(" ") + "…" : words.join(" ");
   };
 
-  // TL;DR
-  if (Array.isArray(data.tldr) && data.tldr.length) {
-    lines.push("\n### 🔥 TL;DR");
-    for (const x of data.tldr.slice(0, 3)) lines.push(`- ${x}`);
-  }
-
-  if (Array.isArray(data.highlights) && data.highlights.length) {
-    lines.push("\n### 🎯 Ключевые итоги недели");
-    for (const h of data.highlights) lines.push(`- ${h}`);
+  // Статус недели
+  if (Array.isArray(data.weekStatus) && data.weekStatus.length) {
+    lines.push("\n### 📋 Статус недели");
+    for (const s of data.weekStatus) lines.push(`- ${s}`);
   }
 
   // Метрики недели удалены по требованиям — не выводим
 
-  // Приоритизация рисков
-  if (data.attention && (Array.isArray(data.attention.critical) || Array.isArray(data.attention.important))) {
-    if (Array.isArray(data.attention.critical) && data.attention.critical.length) {
-      lines.push("\n### ⚠️ Критично");
-      for (const r of data.attention.critical) lines.push(`- ${r}`);
-    }
-    if (Array.isArray(data.attention.important) && data.attention.important.length) {
-      lines.push("\n### ⚠️ Важно");
-      for (const r of data.attention.important) lines.push(`- ${r}`);
-    }
-  }
+  // Убрали отдельные риски/форкасты по новой структуре
 
   if (Array.isArray(data.departments) && data.departments.length) {
     lines.push("\n### 🏢 Планы отделов на неделю");
@@ -125,22 +110,11 @@ export async function buildDigestMarkdown() {
     }
   }
 
-  if (data.forecasts && (Array.isArray(data.forecasts.numbers) || Array.isArray(data.forecasts.launches) || Array.isArray(data.forecasts.risks))) {
-    lines.push("\n### 🔮 Форкасты");
-    if (Array.isArray(data.forecasts.numbers) && data.forecasts.numbers.length) {
-      lines.push("**Цифры:** " + data.forecasts.numbers.join(", "));
-    }
-    if (Array.isArray(data.forecasts.launches) && data.forecasts.launches.length) {
-      lines.push("**Запуски:** " + data.forecasts.launches.join(", "));
-    }
-    if (Array.isArray(data.forecasts.risks) && data.forecasts.risks.length) {
-      lines.push("**Риски:** " + data.forecasts.risks.join(", "));
-    }
-  }
+  // Форкасты скрыты по новой структуре
 
-  if (Array.isArray(data.clientActivity) && data.clientActivity.length) {
-    lines.push("\n### 💼 Активность с клиентами");
-    for (const a of data.clientActivity) {
+  if (Array.isArray(data.keyMeetings) && data.keyMeetings.length) {
+    lines.push("\n### 💼 Ключевые встречи");
+    for (const a of data.keyMeetings) {
       const hasClients = Array.isArray(a.clients) && a.clients.length > 0;
       const hasMeetings = Array.isArray(a.meetings) && a.meetings.length > 0;
       if (!hasClients && !hasMeetings) continue;

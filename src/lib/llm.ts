@@ -88,8 +88,7 @@ export function buildStructuredDigestJsonPrompt(opts: {
 
 Верни строго JSON следующего формата (и только JSON, без комментариев):
 {
-  "tldr": ["2-3 главных момента недели кратко"],
-  "highlights": ["3-5 главных достижения/решений недели из ВСЕХ источников, по 1 короткой фразе"],
+  "weekStatus": ["5-10 пунктов, смешанные позитив/риски, по важности"],
   "departments": [
     {
       "name": "CRO",
@@ -111,23 +110,13 @@ export function buildStructuredDigestJsonPrompt(opts: {
     { "name": "Rev Operations", "people": [] },
     { "name": "Marketing", "people": [] }
   ],
-  "clientActivity": [
+  "keyMeetings": [
     {
       "employee": "Имя Фамилия",
-      "clients": [
-        { "name": "Клиент", "status": "краткий статус в 5-7 слов" }
-      ]
+      "clients": [ { "name": "Клиент", "status": "результат 3-5 слов" } ]
     }
   ],
-  "forecasts": {
-    "numbers": ["метрики/сделки"],
-    "launches": ["новые проекты/интеграции"],
-    "risks": ["риски из форкастов"]
-  },
-  "attention": {
-    "critical": ["критично, решить до пятницы"],
-    "important": ["важно, решить на следующей неделе"]
-  }
+  "_meta": { "order": ["CRO","Sales","BizDev","Digital Sales","Finance","Project Manager","CSM","Partner","Rev Operations","Marketing"] }
 }
 ## Правила заполнения:
 - "highlights" и "attention" — анализируй ВСЕ источники: Weekly, Meetings_7D и Forecasts_7D
@@ -136,8 +125,8 @@ export function buildStructuredDigestJsonPrompt(opts: {
   - tasks: короткие бизнес-задачи понятные CEO (не "продлить токен", а "запустить интеграцию")
   - Убирай технические детали: API, токены, документацию → заменяй на бизнес-смысл
 - "clientActivity" — формируй ТОЛЬКО по Meetings_7D, точно копируя названия и даты
-- "clientActivity.clients[].status" — формируй ТОЛЬКО по Meetings_7D как краткий статус (5-7 слов)
-- "forecasts" — формируй ТОЛЬКО по Forecasts_7D и разнеси по категориям numbers/launches/risks
+- "weekStatus" — формируй из ВСЕХ источников (Weekly_ALL + Meetings_7D + Forecasts_7D)
+- "keyMeetings[].clients[].status" — формируй ТОЛЬКО по Meetings_7D, 3–5 слов
 - Если информации по отделу нет в источниках — не включай этот отдел в результат
 - Если человек не упомянут в источниках — не включай его
 - Если один человек работает в двух отделах (например, Виолетта) — включай в оба с соответствующими задачами
