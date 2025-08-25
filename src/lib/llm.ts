@@ -63,41 +63,72 @@ export function buildStructuredDigestJsonPrompt(opts: {
   const { weeklyAllText, weeklyLatestText, allMeetingsText, forecastsText } = opts;
   return `Ты — аналитик, готовящий компактный еженедельный дайджест для руководства. На входе разрозненный текст из Notion.
 
-Требования к содержанию: четкая иерархия, бизнес-фокус, приоритизация, краткость, понятные всем термины. Извлекай ключевые бизнес-результаты, группируй по важности, переводя технические детали в бизнес-язык. Не придумывай данные.
+КРИТИЧЕСКИ ВАЖНО: НЕ ПРИДУМЫВАЙ ДАННЫЕ. Используй только информацию из источников.
 
-Верни строго JSON следующего формата (и только JSON, без комментариев). 
-- "highlights" и "attention" формируй, анализируя ВСЕ источники: все Weekly, Meetings_7D и Forecasts_7D.
-- "departments" заполняй ТОЛЬКО по последнему Weekly (weeklyLatestText).
-- "clientActivity" формируй ТОЛЬКО по Meetings_7D.
-- "forecastsSummary" формируй ТОЛЬКО по Forecasts_7D.
+## Маппинг сотрудников по отделам:
+- CRO: Егор Москвие [стратегические инициативы, общее руководство]
+- Sales: Константин Поляков
+- BizDev (Nevel): Есения 
+- Digital Sales: Кира Стасюкевич
+- Finance: Екатерина Богданова
+- Project Manager: Евгения Попова [запуск проектов, тесты]
+- CSM: Василий Комлев
+- Partner: Мария Парашенко [работа с партнерами]
+- Rev Operations: Виолетта [задачи по автоматизации процессов]
+- Marketing: Виолетта [SEO, сайт, мероприятия]
+
+## Требования к содержанию: 
+Четкая иерархия, бизнес-фокус, приоритизация, краткость, понятные всем термины. Извлекай ключевые бизнес-результаты, группируй по важности, переводя технические детали в бизнес-язык.
+
+Верни строго JSON следующего формата (и только JSON, без комментариев):
 {
-  "highlights": ["3-5 главных достижения/решения недели, по 1 короткой фразе"],
+  "highlights": ["3-5 главных достижения/решений недели из ВСЕХ источников, по 1 короткой фразе"],
   "departments": [
     {
-      "name": "Sales | BizDev | Project | Partner | CSM | Digital Sales | Finance",
+      "name": "CRO",
       "people": [
         {
-          "name": "Имя Фамилия",
-          "focus": ["клиенты/направления на неделю (1-4)"],
-          "tasks": ["ключевые задачи (1-3)"]
+          "name": "Имя Фамилия", 
+          "focus": ["конкретные клиенты/направления на неделю (1-4)"],
+          "tasks": ["конкретные задачи из weeklyLatestText (1-3)"]
         }
       ]
-    }
+    },
+    { "name": "Sales", "people": [] },
+    { "name": "BizDev", "people": [] },
+    { "name": "Digital Sales", "people": [] },
+    { "name": "Finance", "people": [] },
+    { "name": "Project Manager", "people": [] },
+    { "name": "CSM", "people": [] },
+    { "name": "Partner", "people": [] },
+    { "name": "Rev Operations", "people": [] },
+    { "name": "Marketing", "people": [] }
   ],
   "clientActivity": [
     {
       "employee": "Имя Фамилия",
       "meetings": [
-        { "title": "Клиент или тема (дата)", "question": "главный вопрос", "result": "результат/след. шаг" }
+        { 
+          "title": "Точное название клиента/темы (дата из источника)", 
+          "question": "конкретный вопрос из источника", 
+          "result": "точный результат/следующий шаг из источника" 
+        }
       ]
     }
   ],
-  "forecastsSummary": ["краткие выводы из форкастов (3-6 пунктов)"],
-  "attention": ["риски/блокеры — коротко"]
+  "forecastsSummary": ["точные выводы из Forecasts_7D (3-6 пунктов)"],
+  "attention": ["конкретные риски/блокеры из источников — коротко, без домысливания"]
 }
+## Правила заполнения:
+- "highlights" и "attention" — анализируй ВСЕ источники: Weekly, Meetings_7D и Forecasts_7D
+- "departments" — заполняй ТОЛЬКО по weeklyLatestText, распределяя людей строго по указанному маппингу  
+- "clientActivity" — формируй ТОЛЬКО по Meetings_7D, точно копируя названия и даты
+- "forecastsSummary" — формируй ТОЛЬКО по Forecasts_7D
+- Если информации по отделу нет в источниках — не включай этот отдел в результат
+- Если человек не упомянут в источниках — не включай его
 
 Источник данных:
-[WEEKLY_ALL]\n${weeklyAllText}\n\n[WEEKLY_LATEST]\n${weeklyLatestText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
+[WEEKLY_ALL]\n${weeklyAllText}\n\n[WEEKLY_LATEST] \n${weeklyLatestText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
 }
 
 
