@@ -92,43 +92,46 @@ export async function buildDigestMarkdown() {
   const buildList = (items?: string[]) => (Array.isArray(items) ? items.map((x) => `- ${x}`).join("\n") : "");
   const order = ["CRO","Sales","BizDev","Digital Sales","Finance","Project Manager","CSM","Partner","Rev Operations","Marketing"];
 
-  // Фокус (таблица)
-  lines.push(`\n<table title="🎯 Фокус">`);
-  lines.push(`<headers>Прошлая неделя|Текущая неделя</headers>`);
-  const leftFocusRows = Array.isArray(data?.left?.focus) ? data.left.focus : [];
-  const rightFocusRows = Array.isArray(data?.right?.focus) ? data.right.focus : [];
-  const maxFocus = Math.max(leftFocusRows.length, rightFocusRows.length);
-  for (let i = 0; i < maxFocus; i++) {
-    lines.push(`<row>${leftFocusRows[i] || ""}|${rightFocusRows[i] || ""}</row>`);
-  }
-  lines.push(`</table>`);
+  // Фокус (две колонки с разделителем)
+  lines.push("\n### 🎯 Фокус прошлой недели / этой недели");
+  lines.push("<columns>");
+  lines.push("**🎯 Фокус прошлой недели**\n" + buildList(data?.left?.focus));
+  lines.push("<vsep/>");
+  lines.push("**🎯 Фокус этой недели**\n" + buildList(data?.right?.focus));
+  lines.push("</columns>");
 
-  // Отделы (таблица на отдел)
-  lines.push(`\n<table title="🏢 Итоги и планы">`);
-  lines.push(`<headers>Итоги отделов|Планы отделов</headers>`);
+  // Отделы (две колонки с заголовками слева/справа)
+  lines.push("\n### 🏢 Итоги отделов / Планы отделов");
   for (const dep of order) {
     const leftDep = (data?.left?.departments || []).find((d: any) => d?.name === dep);
     const rightDep = (data?.right?.departments || []).find((d: any) => d?.name === dep);
-    const leftPeople = Array.isArray(leftDep?.people) ? leftDep.people.map((p: any) => `${normalizeName(p.name)}: ${p.summary}`).join("; ") : "";
-    const rightPeople = Array.isArray(rightDep?.people) ? rightDep.people.map((p: any) => `${normalizeName(p.name)}: ${p.summary}`).join("; ") : "";
-    if (leftPeople || rightPeople) lines.push(`<row>${dep}: ${leftPeople}|${dep}: ${rightPeople}</row>`);
+    const leftPeople = Array.isArray(leftDep?.people) ? leftDep.people.map((p: any) => `- ${normalizeName(p.name)}: ${p.summary}`).join("\n") : "";
+    const rightPeople = Array.isArray(rightDep?.people) ? rightDep.people.map((p: any) => `- ${normalizeName(p.name)}: ${p.summary}`).join("\n") : "";
+    lines.push("<columns>");
+    lines.push("**" + dep + "**\n" + leftPeople);
+    lines.push("<vsep/>");
+    lines.push("**" + dep + "**\n" + rightPeople);
+    lines.push("</columns>");
   }
-  lines.push(`</table>`);
 
-  // Встречи (таблица)
+  // Встречи (две колонки)
   const leftMeet = Array.isArray(data?.left?.meetings) ? data.left.meetings : [];
   const rightMeet = Array.isArray(data?.right?.meetings) ? data.right.meetings : [];
-  lines.push(`\n<table title="💼 Встречи">`);
-  lines.push(`<headers>Прошедшие встречи|Запланированные встречи</headers>`);
   const maxMeet = Math.max(leftMeet.length, rightMeet.length);
+  lines.push("\n### 💼 Прошедшие встречи / Запланированные встречи");
   for (let i = 0; i < maxMeet; i++) {
     const l = leftMeet[i];
     const r = rightMeet[i];
-    const lStr = l ? `${normalizeName(l.employee)} — ${(l.items||[]).map((x:any)=>`${x.client}: ${x.status}`).join("; ")}` : "";
-    const rStr = r ? `${normalizeName(r.employee)} — ${(r.items||[]).map((x:any)=>`${x.client}: ${x.status}`).join("; ")}` : "";
-    lines.push(`<row>${lStr}|${rStr}</row>`);
+    const lTitle = l?.employee ? `**${normalizeName(l.employee)}**\n` : "";
+    const rTitle = r?.employee ? `**${normalizeName(r.employee)}**\n` : "";
+    const lItems = l ? (l.items || []).map((x: any) => `- ${x.client}: ${x.status}`).join("\n") : "";
+    const rItems = r ? (r.items || []).map((x: any) => `- ${x.client}: ${x.status}`).join("\n") : "";
+    lines.push("<columns>");
+    lines.push(lTitle + lItems);
+    lines.push("<vsep/>");
+    lines.push(rTitle + rItems);
+    lines.push("</columns>");
   }
-  lines.push(`</table>`);
 
   return lines.join("\n");
 }
