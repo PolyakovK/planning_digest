@@ -83,6 +83,54 @@ export async function buildDigestMarkdown() {
     data.clientActivity = Object.values(merged);
   }
 
+  // Если модель вернула пустой JSON, переключаемся на более устойчивый fallback-промт
+  const leftHas = !!(data?.left && ((data.left.focus||[]).length || (data.left.departments||[]).length || (data.left.meetings||[]).length));
+  const rightHas = !!(data?.right && ((data.right.focus||[]).length || (data.right.departments||[]).length || (data.right.meetings||[]).length));
+  if (!leftHas && !rightHas) {
+    const fbPrompt = (await import("@/lib/llm")).buildStructuredDigestJsonPrompt({
+      weeklyAllText,
+      weeklyLatestText: weeklyPlanningText,
+      allMeetingsText,
+      forecastsText
+    } as any);
+    const fbRaw = await generateText(fbPrompt, "gpt-5");
+    let fb: any; try { fb = JSON.parse(fbRaw); } catch { fb = {}; }
+
+    const lines: string[] = [];
+    const today = new Date().toISOString().slice(0, 10);
+    lines.push(`📊 Weekly Digest ${today}`);
+
+    const buildList = (items?: string[]) => (Array.isArray(items) ? items.map((x) => `- ${x}`).join("\n") : "");
+    const order = ["CRO","Sales","BizDev","Digital Sales","Finance","Project Manager","CSM","Partner","Rev Operations","Marketing"];
+
+    if (Array.isArray(fb.weekStatus) && fb.weekStatus.length) {
+      lines.push("\n### 📋 Статус недели");
+      lines.push(buildList(fb.weekStatus));
+    }
+    if (Array.isArray(fb.departments) && fb.departments.length) {
+      lines.push("\n### 🏢 Планы отделов на неделю");
+      for (const depName of order) {
+        const dep = fb.departments.find((d: any) => d?.name === depName);
+        if (!dep || !Array.isArray(dep.people) || !dep.people.length) continue;
+        lines.push(`\n**${depName}**`);
+        for (const p of dep.people) {
+          if (!p?.name) continue;
+          const parts = [Array.isArray(p.focus)&&p.focus.length?`Фокус: ${p.focus.join(", ")}`: "", Array.isArray(p.tasks)&&p.tasks.length?`Задачи: ${p.tasks.join(", ")}`: ""].filter(Boolean).join("; ");
+          lines.push(`- ${p.name}${parts?": "+parts:""}`);
+        }
+      }
+    }
+    if (Array.isArray(fb.keyMeetings) && fb.keyMeetings.length) {
+      lines.push("\n### 💼 Ключевые встречи");
+      for (const a of fb.keyMeetings) {
+        if (!Array.isArray(a.clients) || !a.clients.length) continue;
+        lines.push(`\n**${a.employee}**`);
+        for (const c of a.clients) lines.push(`- ${c.name}: ${c.status}`);
+      }
+    }
+    return lines.join("\n");
+  }
+
   // 2) Рендерим Markdown: таблица 2 колонки
   const lines: string[] = [];
   const today = new Date().toISOString().slice(0, 10);
