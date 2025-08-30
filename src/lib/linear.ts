@@ -192,6 +192,20 @@ export async function fetchActiveTasksFromLinear(): Promise<any[]> {
   }
 }
 
+export function groupTasksByProject(tasks: any[]): Record<string, any[]> {
+  const grouped: Record<string, any[]> = {};
+  
+  for (const task of tasks) {
+    const projectName = task.project?.name || 'Без проекта';
+    if (!grouped[projectName]) {
+      grouped[projectName] = [];
+    }
+    grouped[projectName].push(task);
+  }
+  
+  return grouped;
+}
+
 export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Promise<string[]> {
   try {
     // REV-97 "Полученные деньги" task ID

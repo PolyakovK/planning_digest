@@ -3,9 +3,10 @@ import {
   fetchSignedDocumentsFromLinear, 
   fetchReceivedPaymentsFromLinear,
   fetchDoneTasksFromLinear,
-  fetchActiveTasksFromLinear 
+  fetchActiveTasksFromLinear,
+  groupTasksByProject
 } from "@/lib/linear";
-import { generateBusinessSummary } from "@/lib/openai";
+import { generateBusinessSummary, formatSingleTask } from "@/lib/openai";
 import { runtimeConfig } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -74,6 +75,88 @@ async function buildWeeklyFocusMarkdown(): Promise<string> {
   return markdown;
 }
 
+async function buildDepartmentBreakdownMarkdown(): Promise<string> {
+  const [doneTasks, activeTasks] = await Promise.all([
+    fetchDoneTasksFromLinear(),
+    fetchActiveTasksFromLinear()
+  ]);
+  
+  const doneByProject = groupTasksByProject(doneTasks);
+  const activeByProject = groupTasksByProject(activeTasks);
+  
+  // Получаем все уникальные проекты
+  const allProjects = new Set([
+    ...Object.keys(doneByProject),
+    ...Object.keys(activeByProject)
+  ]);
+  
+  let markdown = "## 📋 Итоги и планы по отделам\n\n";
+  
+  for (const projectName of Array.from(allProjects).sort()) {
+    if (projectName === 'Без проекта') continue; // Пропускаем задачи без проекта
+    
+    const projectDoneTasks = doneByProject[projectName] || [];
+    const projectActiveTasks = activeByProject[projectName] || [];
+    
+    // Пропускаем отделы без задач
+    if (projectDoneTasks.length === 0 && projectActiveTasks.length === 0) continue;
+    
+    markdown += `### ${getProjectEmoji(projectName)} ${projectName}\n\n`;
+    markdown += "<columns>\n\n";
+    
+    // Левая колонка - Итоги
+    markdown += "#### 📊 Итоги недели\n\n";
+    if (projectDoneTasks.length === 0) {
+      markdown += "Выполненных задач нет.\n\n";
+    } else {
+      // Форматируем каждую задачу через GPT
+      const formattedDoneTasks = await Promise.all(
+        projectDoneTasks.map(task => formatSingleTask(task))
+      );
+      
+      for (const formattedTask of formattedDoneTasks) {
+        markdown += `${formattedTask}\n\n`;
+      }
+    }
+    
+    markdown += "<split/>\n\n";
+    
+    // Правая колонка - Планы
+    markdown += "#### 🎯 Планы недели\n\n";
+    if (projectActiveTasks.length === 0) {
+      markdown += "Активных задач нет.\n\n";
+    } else {
+      // Форматируем каждую задачу через GPT
+      const formattedActiveTasks = await Promise.all(
+        projectActiveTasks.map(task => formatSingleTask(task))
+      );
+      
+      for (const formattedTask of formattedActiveTasks) {
+        markdown += `${formattedTask}\n\n`;
+      }
+    }
+    
+    markdown += "</columns>\n\n";
+  }
+  
+  return markdown;
+}
+
+function getProjectEmoji(projectName: string): string {
+  const emojiMap: Record<string, string> = {
+    'Sales': '💼',
+    'Analytics': '📊', 
+    'Finance': '💰',
+    'Digital Sales': '📱',
+    'CSM': '🤝',
+    'Business Development': '📈',
+    'Documents': '📄',
+    'Partner': '🤝'
+  };
+  
+  return emojiMap[projectName] || '📋';
+}
+
 export async function POST() {
   try {
     const parentId = runtimeConfig.digest.targetPageId();
@@ -81,12 +164,13 @@ export async function POST() {
     const pageId = await createChildPage(parentId, title);
     
     // Build digest content
-    const [financialSection, weeklyFocusSection] = await Promise.all([
+    const [financialSection, weeklyFocusSection, departmentSection] = await Promise.all([
       buildFinancialResultsMarkdown(),
-      buildWeeklyFocusMarkdown()
+      buildWeeklyFocusMarkdown(),
+      buildDepartmentBreakdownMarkdown()
     ]);
     
-    const fullDigest = financialSection + weeklyFocusSection;
+    const fullDigest = financialSection + weeklyFocusSection + departmentSection;
     
     await appendMarkdownToPage(pageId, fullDigest);
     return new Response(JSON.stringify({ ok: true, pageId, title }), { status: 200 });
