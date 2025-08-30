@@ -274,6 +274,19 @@ export function markdown_to_notion_blocks(markdown: string): Array<any> {
       if (midChildren.length) cols.push({ object: "block", type: "column", column: { children: midChildren } });
       const rightChildren = parsePlainLines(seg2);
       if (rightChildren.length) cols.push({ object: "block", type: "column", column: { children: rightChildren } });
+
+      // Notion требует минимум 2 колонки. Если контент только в одной — добавим вторую пустую.
+      if (cols.length === 1) {
+        cols.push({
+          object: "block",
+          type: "column",
+          column: { children: [{ object: "block", type: "paragraph", paragraph: { rich_text: [] } }] }
+        });
+      }
+      // Если совсем пустые — не добавляем column_list
+      if (cols.length === 0) {
+        continue;
+      }
       blocks.push({
         object: "block",
         type: "column_list",

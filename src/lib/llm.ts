@@ -10,6 +10,32 @@ export async function generateText(input: string, modelOverride?: string): Promi
   const res = await getOpenAI().responses.create({ model: modelOverride || MODEL, input });
   return res.output_text as string;
 }
+export function buildLinearMeetingsPrompt(opts: { linear: string; meetings: string }): string {
+  return `Проанализируй данные и создай структурированный дайджест.
+
+ДАННЫЕ ИЗ LINEAR:
+${opts.linear}
+
+ДАННЫЕ ИЗ ВСТРЕЧ:
+${opts.meetings}
+
+Создай JSON в формате:
+{
+  "departments": {
+    "Sales": { "completed": ["задача: результат"], "planned": ["задача: план"] },
+    "Digital Sales": { "completed": [], "planned": [] }
+  },
+  "meetings": {
+    "Sales (Костя)": { "total_meetings": 0, "key_clients": [""], "main_goals": "", "results": "" }
+  }
+}
+
+Правила:
+1) Используй только предоставленные данные.
+2) Группируй задачи по отделам из Linear.
+3) Для встреч извлекай информацию из саммари.
+4) Будь краток и конкретен.`;
+}
 
 export function buildWeeklyDigestPrompt(opts: {
   weeklyPlanningText: string;
