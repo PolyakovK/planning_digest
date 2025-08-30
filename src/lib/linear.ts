@@ -99,6 +99,99 @@ export async function fetchSignedDocumentsFromLinear(daysBack: number = 7): Prom
   }
 }
 
+export async function fetchDoneTasksFromLinear(): Promise<any[]> {
+  try {
+    // Revenue team ID
+    const teamId = "3ff6c82d-369a-4296-b903-92251ba52611";
+    
+    const data = await gql(`query GetRevenueDoneTasks($teamId: String!) {
+      team(id: $teamId) {
+        issues(
+          filter: { 
+            state: { name: { eq: "Done" } }
+          }
+          orderBy: updatedAt
+          first: 20
+        ) {
+          nodes {
+            id
+            identifier
+            title
+            description
+            state { name }
+            project { id name }
+            assignee { id name }
+            createdAt
+            updatedAt
+            completedAt
+            comments {
+              nodes {
+                id
+                body
+                createdAt
+                user { name }
+              }
+            }
+          }
+        }
+      }
+    }`, { teamId });
+    
+    return data.team?.issues?.nodes || [];
+  } catch (error) {
+    console.error("Error fetching done tasks from Linear:", error);
+    return [];
+  }
+}
+
+export async function fetchActiveTasksFromLinear(): Promise<any[]> {
+  try {
+    // Revenue team ID
+    const teamId = "3ff6c82d-369a-4296-b903-92251ba52611";
+    
+    const data = await gql(`query GetRevenueActiveTasks($teamId: String!) {
+      team(id: $teamId) {
+        issues(
+          filter: { 
+            state: { 
+              name: { 
+                in: ["Todo", "In Progress", "In Review"] 
+              } 
+            }
+          }
+          orderBy: updatedAt
+          first: 50
+        ) {
+          nodes {
+            id
+            identifier
+            title
+            description
+            state { name }
+            project { id name }
+            assignee { id name }
+            createdAt
+            updatedAt
+            comments {
+              nodes {
+                id
+                body
+                createdAt
+                user { name }
+              }
+            }
+          }
+        }
+      }
+    }`, { teamId });
+    
+    return data.team?.issues?.nodes || [];
+  } catch (error) {
+    console.error("Error fetching active tasks from Linear:", error);
+    return [];
+  }
+}
+
 export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Promise<string[]> {
   try {
     // REV-97 "Полученные деньги" task ID

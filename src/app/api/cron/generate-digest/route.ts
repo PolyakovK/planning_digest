@@ -1,5 +1,11 @@
 import { appendMarkdownToPage, createChildPage } from "@/lib/notion";
-import { fetchSignedDocumentsFromLinear, fetchReceivedPaymentsFromLinear } from "@/lib/linear";
+import { 
+  fetchSignedDocumentsFromLinear, 
+  fetchReceivedPaymentsFromLinear,
+  fetchDoneTasksFromLinear,
+  fetchActiveTasksFromLinear 
+} from "@/lib/linear";
+import { generateBusinessSummary } from "@/lib/openai";
 import { runtimeConfig } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -37,6 +43,37 @@ async function buildFinancialResultsMarkdown(): Promise<string> {
   return markdown;
 }
 
+async function buildWeeklyFocusMarkdown(): Promise<string> {
+  const [doneTasks, activeTasks] = await Promise.all([
+    fetchDoneTasksFromLinear(),
+    fetchActiveTasksFromLinear()
+  ]);
+  
+  const [completedSummary, activeSummary] = await Promise.all([
+    generateBusinessSummary(doneTasks, "completed"),
+    generateBusinessSummary(activeTasks, "active")
+  ]);
+  
+  let markdown = "## 🎯 Итоги и Фокус недели\n\n";
+  
+  // Двухколоночная структура
+  markdown += "<columns>\n\n";
+  
+  // Левая колонка - Итоги
+  markdown += "### 📊 Итоги недели\n\n";
+  markdown += completedSummary + "\n\n";
+  
+  markdown += "<split/>\n\n";
+  
+  // Правая колонка - Фокус
+  markdown += "### 🎯 Фокус недели\n\n";
+  markdown += activeSummary + "\n\n";
+  
+  markdown += "</columns>\n\n";
+  
+  return markdown;
+}
+
 export async function POST() {
   try {
     const parentId = runtimeConfig.digest.targetPageId();
@@ -44,9 +81,14 @@ export async function POST() {
     const pageId = await createChildPage(parentId, title);
     
     // Build digest content
-    const financialSection = await buildFinancialResultsMarkdown();
+    const [financialSection, weeklyFocusSection] = await Promise.all([
+      buildFinancialResultsMarkdown(),
+      buildWeeklyFocusMarkdown()
+    ]);
     
-    await appendMarkdownToPage(pageId, financialSection);
+    const fullDigest = financialSection + weeklyFocusSection;
+    
+    await appendMarkdownToPage(pageId, fullDigest);
     return new Response(JSON.stringify({ ok: true, pageId, title }), { status: 200 });
   } catch (e: any) {
     return new Response(JSON.stringify({ ok: false, error: e?.message }), { status: 500 });
