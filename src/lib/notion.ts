@@ -147,6 +147,21 @@ export async function getLatestChildPageMarkdownByDate(rootPageId: string): Prom
 export function markdown_to_notion_blocks(markdown: string): Array<any> {
   const lines = (markdown || "").replace(/\r\n/g, "\n").split("\n");
 
+  const MAX_CHUNK = 1800; // below Notion 2000 char limit per rich_text item
+  function chunkText(input: string): string[] {
+    const res: string[] = [];
+    let i = 0;
+    while (i < input.length) {
+      res.push(input.slice(i, i + MAX_CHUNK));
+      i += MAX_CHUNK;
+    }
+    return res.length ? res : [""];
+  }
+
+  function makeRich(content: string, bold: boolean) {
+    return chunkText(content).map((c) => ({ type: "text", text: { content: c }, annotations: { bold } }));
+  }
+
   function toRich(text: string) {
     if (!text) return [] as any[];
     const parts = text.split(/\*\*/);
@@ -154,11 +169,8 @@ export function markdown_to_notion_blocks(markdown: string): Array<any> {
     for (let i = 0; i < parts.length; i++) {
       const content = parts[i];
       if (!content) continue;
-      rich.push({
-        type: "text",
-        text: { content },
-        annotations: { bold: i % 2 === 1 }
-      });
+      const chunks = makeRich(content, i % 2 === 1);
+      rich.push(...chunks);
     }
     return rich.length ? rich : [{ type: "text", text: { content: text } }];
   }
@@ -233,13 +245,13 @@ export function markdown_to_notion_blocks(markdown: string): Array<any> {
       tableChildren.push({
         object: "block",
         type: "table_row",
-        table_row: { cells: [[{ type: "text", text: { content: leftHeader || "" } }], [{ type: "text", text: { content: rightHeader || "" } }]] }
+        table_row: { cells: [[...toRich(leftHeader)], [...toRich(rightHeader)]] }
       });
       for (const r of rows) {
         tableChildren.push({
           object: "block",
           type: "table_row",
-          table_row: { cells: [[{ type: "text", text: { content: r.left } }], [{ type: "text", text: { content: r.right } }]] }
+          table_row: { cells: [[...toRich(r.left)], [...toRich(r.right)]] }
         });
       }
       blocks.push({
