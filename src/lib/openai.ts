@@ -30,7 +30,8 @@ ${latestComment ? `Последний комментарий: ${latestComment}` 
        - Сначала суть задачи (что делали/будут делать)
        - Потом важность или результат (если есть)
        - Конкретно и по делу
-       - НЕ используй символы # в ответе
+       - СТРОГО БЕЗ символов # или заголовков
+       - Только обычный текст с жирным выделением
 
        ФОРМАТ:
        **${task.title}**
@@ -53,8 +54,10 @@ ${latestComment ? `Последний комментарий: ${latestComment}` 
              temperature: 0.3
            });
 
-           return completion.choices[0]?.message?.content || `**${task.title}**`;
-           } catch (error) {
+                      const result = completion.choices[0]?.message?.content || `**${task.title}**`;
+           // Убираем все символы # из ответа GPT
+           return result.replace(/#/g, '').trim();
+         } catch (error) {
            console.error("Error formatting single task:", error);
            return `**${task.title}**`;
          }
@@ -105,7 +108,9 @@ ${!executiveSummary ? meetingContent.slice(0, 1000) : ''}
       temperature: 0.3
     });
 
-    return completion.choices[0]?.message?.content || "встреча проведена";
+    const result = completion.choices[0]?.message?.content || "встреча проведена";
+    // Убираем все символы # из ответа GPT
+    return result.replace(/#/g, '').trim();
   } catch (error) {
     console.error("Error extracting meeting summary:", error);
     return "встреча проведена";
@@ -178,7 +183,9 @@ ${taskList}
       temperature: 0.3
     });
 
-    return completion.choices[0]?.message?.content || "Не удалось создать саммари";
+    const result = completion.choices[0]?.message?.content || "Не удалось создать саммари";
+    // Убираем все символы # из ответа GPT
+    return result.replace(/#/g, '').trim();
   } catch (error) {
     console.error("Error generating business summary:", error);
     return "Ошибка при создании саммари";
