@@ -68,7 +68,7 @@ export async function fetchSignedDocumentsFromLinear(daysBack: number = 7): Prom
         if (dateMatch) {
           const docDate = dateMatch[1];
           // Extract document details (look for bold text patterns)
-          const docLines = lines.filter(line => 
+          const docLines = lines.filter((line: string) => 
             line.includes('**') && (
               line.includes('ДС') || 
               line.includes('NDA') || 
