@@ -8,11 +8,7 @@ export async function POST() {
     const parentId = runtimeConfig.digest.targetPageId();
     const title = `Weekly Digest ${new Date().toISOString().slice(0, 10)}`;
     const pageId = await createChildPage(parentId, title);
-    const markdown = [
-      `# ${title}`,
-      "",
-      "Страница создана. Далее добавим сбор данных и рендер по шагам."
-    ].join("\n");
+    const markdown = "Страница создана. Далее добавим сбор данных и рендер по шагам.";
     await appendMarkdownToPage(pageId, markdown);
     return new Response(JSON.stringify({ ok: true, pageId, title }), { status: 200 });
   } catch (e: any) {
