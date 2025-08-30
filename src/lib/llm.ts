@@ -10,34 +10,39 @@ export async function generateText(input: string, modelOverride?: string): Promi
   const res = await getOpenAI().responses.create({ model: modelOverride || MODEL, input });
   return res.output_text as string;
 }
+
+// Final strict prompt: sources only Linear (Revenue teams + Documents project) and Notion Meetings (7 days)
 export function buildLinearMeetingsPrompt(opts: { linear: string; meetings: string }): string {
   const { linear, meetings } = opts;
-  return `Ты — аналитик, готовящий компактный еженедельный дайджест для руководства. Используй ТОЛЬКО данные из Linear и Notion Meetings (последние 7 дней). НЕ ПРИДУМЫВАЙ ДАННЫЕ.
+  return `Ты — аналитик, готовящий компактный еженедельный дайджест для руководства. ИСПОЛЬЗУЙ ТОЛЬКО:
+- Linear: все команды Revenue (все проекты) + проект "Documents"
+- Notion: раздел "Все встречи" за последние 7 дней
+НЕ ПРИДУМЫВАЙ ДАННЫЕ.
 
-Верни строго JSON (только JSON без комментариев) следующего вида:
+Верни строго JSON (только JSON без комментариев):
 {
   "documents": {
     "signed": ["Название документа: краткий статус"],
     "received_payments": ["Название платежа: сумма/статус"]
   },
   "highlights_focus": {
-    "past_week": ["3-5 важнейших бизнес-итогов из Linear Done задач (последние 7 дней)"],
-    "current_week": ["3-5 важнейших бизнес-фокусов из Linear задач в Todo/In Progress/In Review"]
+    "past_week": ["3-5 важнейших бизнес-итогов из Linear задач Done (7 дней)"],
+    "current_week": ["3-5 важнейших фокусов из Linear задач Todo/In Progress/In Review"]
   },
   "departments": {
-    "Sales": { "completed": ["задача: итог"], "planned": ["задача: план"] },
-    "Digital Sales": { "completed": [], "planned": [] },
+    "CRO": { "completed": ["задача: итог и почему это важно"], "planned": ["задача: план и обоснование"] },
+    "Sales": { "completed": [], "planned": [] },
     "BizDev": { "completed": [], "planned": [] },
+    "Digital Sales": { "completed": [], "planned": [] },
+    "Finance": { "completed": [], "planned": [] },
     "Project Manager": { "completed": [], "planned": [] },
     "CSM": { "completed": [], "planned": [] },
     "Partner": { "completed": [], "planned": [] },
-    "Finance": { "completed": [], "planned": [] },
-    "CRO": { "completed": [], "planned": [] },
     "Rev Operations": { "completed": [], "planned": [] },
     "Marketing": { "completed": [], "planned": [] }
   },
   "meetings": {
-    "Sales (Костя)": {
+    "Sales": {
       "total_meetings": 0,
       "key_clients": ["клиент1", "клиент2"],
       "main_goals": "кратко цели",
@@ -47,170 +52,16 @@ export function buildLinearMeetingsPrompt(opts: { linear: string; meetings: stri
 }
 
 Правила заполнения:
-- Блок documents: используй ТОЛЬКО задачи Linear из проекта "Documents" со статусом Done за последние 7 дней. Классифицируй по двум спискам: "signed" и "received_payments". Если нет данных — верни массив с одним элементом "Обновлений за неделю нет".
-- highlights_focus: сформируй 3–5 бизнес-пунктов в каждую под-часть строго из Linear задач по всем Revenue-командам. past_week — из Done (7 дней), current_week — из Todo/In Progress/In Review. Пиши кратко, понятным бизнес-языком.
-- departments: заполни по Linear задачам для каждого отдела. completed — Done (7 дней). planned — остальные статусы. Формулируй как короткие предложения с контекстом (что и зачем).
-- meetings: сформируй ТОЛЬКО по Notion "Все встречи" за последние 7 дней. Группируй по отделам/менеджерам; дай количество встреч, ключевых клиентов, основные цели и результаты.
-- Если раздел пуст — не включай его ключ вовсе, кроме documents где, при отсутствии данных, верни "Обновлений за неделю нет" как единственный элемент соответствующего массива.
+- documents: только задачи проекта "Documents" со статусом Done за 7 дней. Распределяй по спискам "signed" и "received_payments". Если данных нет — верни массив ["Обновлений за неделю нет"].
+- highlights_focus: формируй краткие бизнес-формулировки; избегай тех. терминов. Источники — только Linear задачи по всем Revenue-командам.
+- departments: для каждого отдела сформируй completed (Done за 7 дней) и planned (Todo/In Progress/In Review и др., кроме Backlog). Каждая формулировка — полным предложением, с контекстом и обоснованием важности.
+- meetings: формируй строго по Notion "Все встречи" за 7 дней: количество, ключевые клиенты, цели и результаты. Если данных нет по отделу — пропусти этот отдел.
+- Если раздел пуст — не включай его ключ вовсе, кроме documents (там при отсутствии — верни массив с одним элементом "Обновлений за неделю нет").
 
 ДАННЫЕ_ИЗ_LINEAR:
 ${linear}
 
 ДАННЫЕ_ИЗ_MEETINGS_7D:
 ${meetings}`;
-}
-
-export function buildWeeklyDigestPrompt(opts: {
-  weeklyPlanningText: string;
-  allMeetingsText: string;
-  forecastsText: string;
-}): string {
-  const { weeklyPlanningText, allMeetingsText, forecastsText } = opts;
-  return `Ты — ассистент-компактного менеджерского дайджеста. На входе «сырой» экспорт из Notion (возможны заголовки, маркеры, повторения). Не требуй доп. ввода.
-
-1) Сформируй блок "Планирование ревенью команды" (очень кратко, 1–2 строки на человека). Для каждого сотрудника используй формат:
-- ИМЯ (жирно на отдельной строке)
-  Фокус: ...
-  Прочие: ...
-
-2) Итоги по прошедшим встречам (7 дней, БРАТЬ ТОЛЬКО ИЗ MEETINGS RAW):
-- для каждого сотрудника перечисли только реально прошедшие встречи за 7 дней,
-- по каждой встрече: один главный вопрос и один результат/след. шаг,
-- если встреч у сотрудника нет — этого сотрудника не выводи.
-
-3) Форкасты: выведи 3–6 коротких маркеров, сгруппировав на «обсуждения», «проблемы/риски», «задачи/сроки». Избегай длинных абзацев.
-
-Формат вывода:
-- не используй символы #; заголовки дай как обычные строки В ВЕРХНЕМ РЕГИСТРЕ,
-- списки начинай с "- ",
-- общий объём — компактный.
-
-[WEEKLY PLANNING RAW]\n${weeklyPlanningText}\n\n[MEETINGS RAW]\n${allMeetingsText}\n\n[FORECASTS RAW]\n${forecastsText}`;
-}
-
-export function buildWeeklyTasksExtractionPrompt(weeklyPlanningText: string): string {
-  return `Извлеки задачи для создания issues в Linear из Weekly Planning. Верни строго JSON:
-{
-  "employees": [
-    {
-      "name": "Имя Фамилия",
-      "tasks": [
-        { "title": "краткий заголовок", "description": "описание/контекст" }
-      ]
-    }
-  ]
-}
-Если нет задач у сотрудника — не включай его. Текст источника ниже:\n\n${weeklyPlanningText}`;
-}
-
-export function buildStructuredDigestJsonPrompt(opts: {
-  weeklyAllText: string; // все weekly-страницы
-  weeklyLatestText: string; // последняя страница weekly
-  allMeetingsText: string;
-  forecastsText: string;
-}): string {
-  const { weeklyAllText, weeklyLatestText, allMeetingsText, forecastsText } = opts;
-  return `Ты — аналитик, готовящий компактный еженедельный дайджест для руководства. На входе разрозненный текст из Notion.
-
-КРИТИЧЕСКИ ВАЖНО: НЕ ПРИДУМЫВАЙ ДАННЫЕ. Используй только информацию из источников.
-
-Формулируй задачи полными предложениями с контекстом:
-- ❌ "Продлить токен" → ✅ "Продлить токен для Kucher для запуска интеграции"
-- ❌ "Выслать документацию" → ✅ "Выслать API-документацию YoFin для старта пилота"
-- ❌ "Передать ТЗ в разработку" → ✅ "Передать ТЗ по FinBridge в разработку"
-- ❌ "Настроить Linear" → ✅ "Настроить Linear для автоматизации задач команды"
-
-## Маппинг сотрудников по отделам:
-- CRO: Егор Москвие [стратегические инициативы, общее руководство]
-- Sales: Константин Поляков
-- BizDev (Nevel): Есения 
-- Digital Sales: Кира Стасюкевич
-- Finance: Екатерина Богданова
-- Project Manager: Евгения Попова [запуск проектов, тесты]
-- CSM: Василий Комлев
-- Partner: Мария Парашенко [работа с партнерами]
-- Rev Operations: Виолетта [задачи по автоматизации процессов]
-- Marketing: Виолетта [SEO, сайт, мероприятия]
-
-## Требования к содержанию: 
-Четкая иерархия, бизнес-фокус, приоритизация, краткость, понятные всем термины. Извлекай ключевые бизнес-результаты, группируй по важности, переводя технические детали в бизнес-язык.
-
-Верни строго JSON следующего формата (и только JSON, без комментариев):
-{
-  "weekStatus": ["5-10 пунктов, смешанные позитив/риски, по важности"],
-  "departments": [
-    {
-      "name": "CRO",
-      "people": [
-        {
-          "name": "Имя Фамилия", 
-          "focus": ["бизнес-направления на неделю (1-3)"],
-          "tasks": ["ключевые бизнес-задачи коротко, без технических деталей (1-3)"]
-        }
-      ]
-    },
-    { "name": "Sales", "people": [] },
-    { "name": "BizDev", "people": [] },
-    { "name": "Digital Sales", "people": [] },
-    { "name": "Finance", "people": [] },
-    { "name": "Project Manager", "people": [] },
-    { "name": "CSM", "people": [] },
-    { "name": "Partner", "people": [] },
-    { "name": "Rev Operations", "people": [] },
-    { "name": "Marketing", "people": [] }
-  ],
-  "keyMeetings": [
-    {
-      "employee": "Имя Фамилия",
-      "clients": [ { "name": "Клиент", "status": "результат 3-5 слов" } ]
-    }
-  ],
-  "_meta": { "order": ["CRO","Sales","BizDev","Digital Sales","Finance","Project Manager","CSM","Partner","Rev Operations","Marketing"] }
-}
-## Правила заполнения:
-- "highlights" и "attention" — анализируй ВСЕ источники: Weekly, Meetings_7D и Forecasts_7D
-- "departments" — заполняй ТОЛЬКО по weeklyLatestText, распределяя людей строго по указанному маппингу
-  - focus: бизнес-направления/клиенты, без технических терминов
-  - tasks: короткие бизнес-задачи понятные CEO (не "продлить токен", а "запустить интеграцию")
-  - Убирай технические детали: API, токены, документацию → заменяй на бизнес-смысл
-- "clientActivity" — формируй ТОЛЬКО по Meetings_7D, точно копируя названия и даты
-- "weekStatus" — формируй из ВСЕХ источников (Weekly_ALL + Meetings_7D + Forecasts_7D)
-- "keyMeetings[].clients[].status" — формируй ТОЛЬКО по Meetings_7D, 3–5 слов
-- Если информации по отделу нет в источниках — не включай этот отдел в результат
-- Если человек не упомянут в источниках — не включай его
-- Если один человек работает в двух отделах (например, Виолетта) — включай в оба с соответствующими задачами
-
-Источник данных:
-[WEEKLY_ALL]\n${weeklyAllText}\n\n[WEEKLY_LATEST] \n${weeklyLatestText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
-}
-
-export function buildTwoColumnDigestJsonPrompt(opts: {
-  previousDigestText: string; // предыдущий дайджест (основной источник для левой колонки)
-  weeklyLatestText: string; // последний Weekly (основной источник для правой колонки)
-  weeklyAllText: string; // вспомогательно
-  allMeetingsText: string; // последние 7 дней
-  forecastsText: string; // последние 7 дней
-}): string {
-  const { previousDigestText, weeklyLatestText, weeklyAllText, allMeetingsText, forecastsText } = opts;
-  return `Ты — аналитик. Сформируй ДВУХКОЛОНОЧНЫЙ дайджест по структуре ниже. Ничего не выдумывай, используй только источники.
-
-Верни строго JSON:
-{
-  "left": {
-    "focus": ["что было фокусом прошлой недели (1-5)"],
-    "departments": [ { "name": "CRO|Sales|BizDev|Digital Sales|Finance|Project Manager|CSM|Partner|Rev Operations|Marketing", "people": [ { "name": "Имя", "summary": "что сделал/проблемы одной строкой" } ] } ],
-    "meetings": [ { "employee": "Имя", "items": [ { "client": "Клиент", "status": "результат 3-5 слов" } ] } ]
-  },
-  "right": {
-    "focus": ["фокус текущей недели (1-5)"],
-    "departments": [ { "name": "CRO|Sales|BizDev|Digital Sales|Finance|Project Manager|CSM|Partner|Rev Operations|Marketing", "people": [ { "name": "Имя", "summary": "задачи одной строкой" } ] } ],
-    "meetings": [ { "employee": "Имя", "items": [ { "client": "Клиент", "status": "цель/ожидаемый результат 3-5 слов" } ] } ]
-  }
-}
-
-Источники для левой колонки: ПРЕЖДЕ ВСЕГО предыдущий дайджест, можно дополнять фактами из Weekly_ALL, Meetings_7D, Forecasts_7D.
-Источники для правой колонки: ПРЕЖДЕ ВСЕГО последний Weekly. Для встреч правой колонки используй планы/упоминания будущих встреч из Weekly; при отсутствии — оставь пусто.
-
-[PREV_DIGEST]\n${previousDigestText}\n\n[WEEKLY_LATEST]\n${weeklyLatestText}\n\n[WEEKLY_ALL]\n${weeklyAllText}\n\n[MEETINGS_7D]\n${allMeetingsText}\n\n[FORECASTS_7D]\n${forecastsText}`;
 }
 
