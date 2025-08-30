@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 const QUERY = `query ViewerTeamsProjectsIssues($first:Int!) {
   viewer { id name email }
   teams(first: 50) { nodes { id key name } }
-  projects(first: 50) { nodes { id name slug url } }
+  projects(first: 50) { nodes { id name slugId url } }
   issues(orderBy: updatedAt, first: $first) {
     nodes {
       id
