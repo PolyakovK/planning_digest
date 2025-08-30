@@ -39,7 +39,7 @@ export default function DigestsPage() {
   return (
     <div style={{ maxWidth: 820, margin: '0 auto' }}>
       <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Дайджесты</div>
-      <div style={{ color: '#6B7280', marginBottom: 20 }}>Минимальный скелет: создаём пустую страницу в разделе Notion "Дайджесты".</div>
+      <div style={{ color: '#6B7280', marginBottom: 20 }}>Минимальный скелет: создаём пустую страницу в разделе Notion &quot;Дайджесты&quot;.</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
         <Card
           title="Сгенерировать пустой дайджест"
