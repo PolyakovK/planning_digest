@@ -26,6 +26,17 @@ const QUERY = `query GetRevenueDoneTasks($teamId: String!) {
         createdAt
         updatedAt
         completedAt
+        comments {
+          nodes {
+            id
+            body
+            createdAt
+            user {
+              id
+              name
+            }
+          }
+        }
       }
     }
   }
