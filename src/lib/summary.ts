@@ -21,18 +21,18 @@ export async function buildDigestMarkdown() {
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
   const within7d = (iso: string) => now - new Date(iso).getTime() <= sevenDays;
   const docSigned = docsIssues
-    .filter((i) => i.title.toLowerCase().includes("подпис") && within7d(i.updatedAt))
+    .filter((i) => (i.state?.name?.toLowerCase() === "done" || i.state?.name?.toLowerCase() === "completed") && within7d(i.updatedAt) && i.title.toLowerCase().includes("подпис"))
     .map((i) => (i.description ? `${i.title}: ${i.description}` : i.title));
   const docPayments = docsIssues
-    .filter((i) => i.title.toLowerCase().includes("получен") && within7d(i.updatedAt))
+    .filter((i) => (i.state?.name?.toLowerCase() === "done" || i.state?.name?.toLowerCase() === "completed") && within7d(i.updatedAt) && (i.title.toLowerCase().includes("получен") || i.title.toLowerCase().includes("оплата")))
     .map((i) => (i.description ? `${i.title}: ${i.description}` : i.title));
 
   // 3) Notion: встречи (7 дней)
   const meetingsText = await collectMeetingsText();
 
-  // 4) LLM: упрощённый JSON (departments + documents + meetings)
+  // 4) LLM: строгий JSON (departments + documents + meetings)
   const jsonPrompt = buildLinearMeetingsPrompt({
-    linear: JSON.stringify({ grouped, documents: { signed: docSigned, payments: docPayments } }, null, 2),
+    linear: JSON.stringify({ grouped, documents: { signed: docSigned, received_payments: docPayments } }, null, 2),
     meetings: meetingsText
   });
   const jsonRaw = await generateText(jsonPrompt, "gpt-5");
@@ -50,7 +50,7 @@ export async function buildDigestMarkdown() {
   else lines.push("- Обновлений за неделю нет");
 
   lines.push("\n### 💰 Полученные деньги");
-  const payList = data?.documents?.payments as string[] | undefined;
+  const payList = (data?.documents?.received_payments as string[] | undefined) || (data?.documents?.payments as string[] | undefined);
   if (Array.isArray(payList) && payList.length) payList.forEach((x) => lines.push(`- ${x}`));
   else lines.push("- Обновлений за неделю нет");
 
@@ -61,7 +61,7 @@ export async function buildDigestMarkdown() {
     "BizDev",
     "Digital Sales",
     "Finance",
-    "Project",
+    "Project Manager",
     "CSM",
     "Partner",
     "Rev Operations",

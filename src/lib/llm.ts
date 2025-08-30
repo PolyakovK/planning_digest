@@ -11,34 +11,53 @@ export async function generateText(input: string, modelOverride?: string): Promi
   return res.output_text as string;
 }
 export function buildLinearMeetingsPrompt(opts: { linear: string; meetings: string }): string {
-  return `Проанализируй данные и создай структурированный дайджест.
+  const { linear, meetings } = opts;
+  return `Ты — аналитик, готовящий компактный еженедельный дайджест для руководства. Используй ТОЛЬКО данные из Linear и Notion Meetings (последние 7 дней). НЕ ПРИДУМЫВАЙ ДАННЫЕ.
 
-ДАННЫЕ ИЗ LINEAR:
-${opts.linear}
-
-ДАННЫЕ ИЗ ВСТРЕЧ:
-${opts.meetings}
-
-Создай JSON в формате:
+Верни строго JSON (только JSON без комментариев) следующего вида:
 {
-  "departments": {
-    "Sales": { "completed": ["задача: результат"], "planned": ["задача: план"] },
-    "Digital Sales": { "completed": [], "planned": [] }
-  },
   "documents": {
-    "signed": ["краткие пункты по подписанным документам"],
-    "payments": ["краткие пункты по полученным деньгам"]
+    "signed": ["Название документа: краткий статус"],
+    "received_payments": ["Название платежа: сумма/статус"]
+  },
+  "highlights_focus": {
+    "past_week": ["3-5 важнейших бизнес-итогов из Linear Done задач (последние 7 дней)"],
+    "current_week": ["3-5 важнейших бизнес-фокусов из Linear задач в Todo/In Progress/In Review"]
+  },
+  "departments": {
+    "Sales": { "completed": ["задача: итог"], "planned": ["задача: план"] },
+    "Digital Sales": { "completed": [], "planned": [] },
+    "BizDev": { "completed": [], "planned": [] },
+    "Project Manager": { "completed": [], "planned": [] },
+    "CSM": { "completed": [], "planned": [] },
+    "Partner": { "completed": [], "planned": [] },
+    "Finance": { "completed": [], "planned": [] },
+    "CRO": { "completed": [], "planned": [] },
+    "Rev Operations": { "completed": [], "planned": [] },
+    "Marketing": { "completed": [], "planned": [] }
   },
   "meetings": {
-    "Sales (Костя)": { "total_meetings": 0, "key_clients": [""], "main_goals": "", "results": "" }
+    "Sales (Костя)": {
+      "total_meetings": 0,
+      "key_clients": ["клиент1", "клиент2"],
+      "main_goals": "кратко цели",
+      "results": "кратко результаты"
+    }
   }
 }
 
-Правила:
-1) Используй только предоставленные данные.
-2) Группируй задачи по отделам из Linear.
-3) Для встреч извлекай информацию из саммари.
-4) Будь краток и конкретен.`;
+Правила заполнения:
+- Блок documents: используй ТОЛЬКО задачи Linear из проекта "Documents" со статусом Done за последние 7 дней. Классифицируй по двум спискам: "signed" и "received_payments". Если нет данных — верни массив с одним элементом "Обновлений за неделю нет".
+- highlights_focus: сформируй 3–5 бизнес-пунктов в каждую под-часть строго из Linear задач по всем Revenue-командам. past_week — из Done (7 дней), current_week — из Todo/In Progress/In Review. Пиши кратко, понятным бизнес-языком.
+- departments: заполни по Linear задачам для каждого отдела. completed — Done (7 дней). planned — остальные статусы. Формулируй как короткие предложения с контекстом (что и зачем).
+- meetings: сформируй ТОЛЬКО по Notion "Все встречи" за последние 7 дней. Группируй по отделам/менеджерам; дай количество встреч, ключевых клиентов, основные цели и результаты.
+- Если раздел пуст — не включай его ключ вовсе, кроме documents где, при отсутствии данных, верни "Обновлений за неделю нет" как единственный элемент соответствующего массива.
+
+ДАННЫЕ_ИЗ_LINEAR:
+${linear}
+
+ДАННЫЕ_ИЗ_MEETINGS_7D:
+${meetings}`;
 }
 
 export function buildWeeklyDigestPrompt(opts: {
