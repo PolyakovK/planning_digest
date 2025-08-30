@@ -99,7 +99,7 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     markdown += "<columns>\n\n";
     
     // Левая колонка - Итоги
-    markdown += "#### 📊 Итоги недели\n\n";
+    markdown += "**📊 Итоги недели**\n\n";
     if (projectDoneTasks.length === 0) {
       markdown += "Выполненных задач пока нет.\n\n";
     } else {
@@ -109,14 +109,14 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
       );
       
       for (const formattedTask of formattedDoneTasks) {
-        markdown += `${formattedTask}\n\n`;
+        markdown += `🔸 ${formattedTask}\n\n`;
       }
     }
     
     markdown += "<split/>\n\n";
     
     // Правая колонка - Планы
-    markdown += "#### 🎯 Планы недели\n\n";
+    markdown += "**🎯 Планы недели**\n\n";
     if (projectActiveTasks.length === 0) {
       markdown += "Активных задач пока нет.\n\n";
     } else {
@@ -126,7 +126,7 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
       );
       
       for (const formattedTask of formattedActiveTasks) {
-        markdown += `${formattedTask}\n\n`;
+        markdown += `🔹 ${formattedTask}\n\n`;
       }
     }
     
