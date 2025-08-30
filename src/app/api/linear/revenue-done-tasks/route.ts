@@ -10,10 +10,9 @@ const QUERY = `query GetRevenueDoneTasks($teamId: String!) {
     issues(
       filter: { 
         state: { name: { eq: "Done" } }
-        updatedAt: { gte: "-7d" }
       }
       orderBy: updatedAt
-      first: 100
+      first: 20
     ) {
       nodes {
         id
