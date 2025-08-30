@@ -1,6 +1,7 @@
 type RequiredEnv =
   | "NOTION_TOKEN"
-  | "DIGESTS_ROOT_PAGE_ID";
+  | "DIGESTS_ROOT_PAGE_ID"
+  | "LINEAR_API_KEY";
 
 export function getEnv(name: RequiredEnv | string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -17,6 +18,9 @@ export const runtimeConfig = {
   digest: {
     targetPageId: () => getEnv("DIGESTS_ROOT_PAGE_ID"), // TODO: Add to .env
     timezone: () => process.env.DIGEST_TIMEZONE || "Europe/Moscow"
+  },
+  linear: {
+    apiKey: () => getEnv("LINEAR_API_KEY"), // TODO: Add to .env
   }
 };
 
