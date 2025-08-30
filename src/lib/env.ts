@@ -6,7 +6,9 @@ type RequiredEnv =
   | "OPENAI_API_KEY"
   | "WEEKLY_PLANNING_ROOT_PAGE_ID"
   | "LINEAR_API_KEY"
-  | "LINEAR_TEAM_IDS";
+  | "LINEAR_TEAM_IDS"
+  | "LINEAR_REVENUE_TEAM_ID"
+  | "LINEAR_PROJECT_DOCUMENTS_ID";
 
 export function getEnv(name: RequiredEnv | string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -33,7 +35,9 @@ export const runtimeConfig = {
   },
   linear: {
     apiKey: () => getEnv("LINEAR_API_KEY"),
-    teamIds: () => getEnv("LINEAR_TEAM_IDS")
+    teamIds: () => getEnv("LINEAR_TEAM_IDS"),
+    revenueTeamId: () => getEnv("LINEAR_REVENUE_TEAM_ID"),
+    documentsProjectId: () => getEnv("LINEAR_PROJECT_DOCUMENTS_ID")
   }
 };
 

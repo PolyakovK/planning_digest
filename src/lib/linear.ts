@@ -87,4 +87,17 @@ export async function fetchProjectsByTeamId(teamId: string): Promise<Array<{ id:
   return (data?.projects?.nodes || []) as Array<{ id: string; name: string }>;
 }
 
+export async function fetchIssuesByProjectId(projectId: string): Promise<LinearIssue[]> {
+  const data = await gql(
+    `query($id:String!){
+      project(id:$id){ id name
+        issues(first:200){ nodes{ id title description state{ name } createdAt updatedAt }
+        }
+      }
+    }`,
+    { id: projectId }
+  );
+  return (data?.project?.issues?.nodes || []) as LinearIssue[];
+}
+
 

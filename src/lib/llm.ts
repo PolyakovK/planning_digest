@@ -25,6 +25,10 @@ ${opts.meetings}
     "Sales": { "completed": ["задача: результат"], "planned": ["задача: план"] },
     "Digital Sales": { "completed": [], "planned": [] }
   },
+  "documents": {
+    "signed": ["краткие пункты по подписанным документам"],
+    "payments": ["краткие пункты по полученным деньгам"]
+  },
   "meetings": {
     "Sales (Костя)": { "total_meetings": 0, "key_clients": [""], "main_goals": "", "results": "" }
   }
