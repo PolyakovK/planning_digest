@@ -38,13 +38,13 @@ export default function DigestsPage() {
 
   return (
     <div style={{ maxWidth: 820, margin: '0 auto' }}>
-      <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Дайджесты и задачи</div>
-      <div style={{ color: '#6B7280', marginBottom: 20 }}>Сгенерируйте еженедельный дайджест и синхронизируйте задачи в Linear.</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Дайджесты</div>
+      <div style={{ color: '#6B7280', marginBottom: 20 }}>Минимальный скелет: создаём пустую страницу в разделе Notion "Дайджесты".</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
         <Card
-          title="Сгенерировать дайджест недели"
-          description="Создать новую страницу в разделе Дайджесты за текущую неделю. Берем встречи и форкасты только за 7 дней."
-          actionLabel="Сформировать дайджест"
+          title="Сгенерировать пустой дайджест"
+          description="Создать новую страницу в разделе Дайджесты за текущую неделю."
+          actionLabel="Создать"
           onClick={() => call('/api/cron/generate-digest')}
         />
       </div>

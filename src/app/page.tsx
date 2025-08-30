@@ -2,11 +2,11 @@ export default function HomePage() {
   return (
     <div>
       <h1>Planning Digest</h1>
-      <p>Сервис готов. Проверь API маршруты:</p>
+      <p>Минимальный скелет. Перейдите на страницу дайджестов:</p>
       <ul>
+        <li><a href="/digests">/digests</a></li>
         <li><code>/api/health</code></li>
         <li><code>/api/cron/generate-digest</code></li>
-        <li><code>/api/linear/sync-weekly</code></li>
       </ul>
     </div>
   );
