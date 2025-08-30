@@ -2,7 +2,7 @@ import { runtimeConfig } from "@/lib/env";
 
 export const runtime = "nodejs";
 
-const QUERY = `query GetRevenueDoneTasks($teamId: String!, $after: DateTimeOrDuration!) {
+const QUERY = `query GetRevenueDoneTasks($teamId: String!) {
   team(id: $teamId) {
     id
     key
@@ -10,7 +10,7 @@ const QUERY = `query GetRevenueDoneTasks($teamId: String!, $after: DateTimeOrDur
     issues(
       filter: { 
         state: { name: { eq: "Done" } }
-        updatedAt: { gte: $after }
+        updatedAt: { gte: "-7d" }
       }
       orderBy: updatedAt
       first: 100
@@ -35,10 +35,6 @@ export async function GET() {
     // Revenue team ID
     const teamId = "3ff6c82d-369a-4296-b903-92251ba52611";
     
-    // Last 7 days
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 7);
-    
     const apiKey = runtimeConfig.linear.apiKey();
     const res = await fetch("https://api.linear.app/graphql", {
       method: "POST",
@@ -48,10 +44,7 @@ export async function GET() {
       },
       body: JSON.stringify({ 
         query: QUERY, 
-        variables: { 
-          teamId, 
-          after: cutoffDate.toISOString() 
-        } 
+        variables: { teamId } 
       }),
     });
     
