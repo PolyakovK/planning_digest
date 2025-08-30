@@ -60,8 +60,60 @@ ${latestComment ? `Последний комментарий: ${latestComment}` 
          }
 }
 
+export async function extractMeetingSummary(meetingContent: string, meetingTitle: string): Promise<string> {
+  // Ищем Executive Summary в контенте
+  const executiveSummaryMatch = meetingContent.match(/EXECUTIVE SUMMARY[^:]*:?\s*([^#]*?)(?=\n#|\n\n#|$)/i);
+  let executiveSummary = "";
+  
+  if (executiveSummaryMatch) {
+    executiveSummary = executiveSummaryMatch[1].trim();
+  }
+  
+  const prompt = `Создай краткую суть встречи в одном предложении на основе данных.
+
+ВСТРЕЧА: ${meetingTitle}
+
+EXECUTIVE SUMMARY:
+${executiveSummary || 'Не найдено'}
+
+ПОЛНЫЙ КОНТЕНТ (если Executive Summary пустой):
+${!executiveSummary ? meetingContent.slice(0, 1000) : ''}
+
+ТРЕБОВАНИЯ:
+- Одно предложение максимум 15-20 слов
+- Суть: с кем встреча и главный результат/тема
+- Без лишних деталей
+- Деловой стиль
+
+ФОРМАТ:
+обсуждение [главной темы] с [клиентом], [ключевой результат]`;
+
+  try {
+    const completion = await getOpenAI().chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "Ты помощник, который создает краткие саммари встреч для руководства. Фокусируйся на ключевых результатах и решениях."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      max_tokens: 100,
+      temperature: 0.3
+    });
+
+    return completion.choices[0]?.message?.content || "встреча проведена";
+  } catch (error) {
+    console.error("Error extracting meeting summary:", error);
+    return "встреча проведена";
+  }
+}
+
 export async function generateBusinessSummary(
-  tasks: any[], 
+  tasks: any[],
   type: "completed" | "active"
 ): Promise<string> {
   const taskList = tasks.map(task => {

@@ -1,6 +1,7 @@
 type RequiredEnv =
   | "NOTION_TOKEN"
   | "DIGESTS_ROOT_PAGE_ID"
+  | "MEETINGS_ROOT_PAGE_ID"
   | "LINEAR_API_KEY"
   | "OPENAI_API_KEY";
 
@@ -19,6 +20,9 @@ export const runtimeConfig = {
   digest: {
     targetPageId: () => getEnv("DIGESTS_ROOT_PAGE_ID"), // TODO: Add to .env
     timezone: () => process.env.DIGEST_TIMEZONE || "Europe/Moscow"
+  },
+  meetings: {
+    rootPageId: () => getEnv("MEETINGS_ROOT_PAGE_ID"), // TODO: Add to .env
   },
   linear: {
     apiKey: () => getEnv("LINEAR_API_KEY"), // TODO: Add to .env

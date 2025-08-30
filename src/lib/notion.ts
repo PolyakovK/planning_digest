@@ -373,4 +373,46 @@ export async function getForecastsListForLastDays(
   return result;
 }
 
+export async function getMeetingsForLastDays(
+  meetingsRootId: string,
+  days: number = 7
+): Promise<Array<{ department: string; meetings: Array<{ title: string; content: string; date: Date }> }>> {
+  const departments = await listChildPages(meetingsRootId);
+  const result: Array<{ department: string; meetings: Array<{ title: string; content: string; date: Date }> }> = [];
+  
+  for (const dept of departments) {
+    const meetings = await listChildPages(dept.id);
+    const recentMeetings = meetings
+      .map((m) => ({ ...m, date: parseDateFromTitle(m.title) }))
+      .filter((m) => m.date && isWithinDays(m.date as Date, days))
+      .sort((a, b) => (b.date!.getTime() - a.date!.getTime()));
+    
+    if (recentMeetings.length === 0) continue;
+    
+    const meetingDetails: Array<{ title: string; content: string; date: Date }> = [];
+    
+    for (const meeting of recentMeetings) {
+      try {
+        const content = await getPageMarkdown(meeting.id, 1);
+        meetingDetails.push({
+          title: meeting.title,
+          content,
+          date: meeting.date as Date
+        });
+      } catch (error) {
+        console.error(`Error fetching meeting ${meeting.title}:`, error);
+      }
+    }
+    
+    if (meetingDetails.length > 0) {
+      result.push({
+        department: dept.title,
+        meetings: meetingDetails
+      });
+    }
+  }
+  
+  return result;
+}
+
 

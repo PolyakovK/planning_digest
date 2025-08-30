@@ -1,4 +1,4 @@
-import { appendMarkdownToPage, createChildPage } from "@/lib/notion";
+import { appendMarkdownToPage, createChildPage, getMeetingsForLastDays } from "@/lib/notion";
 import { 
   fetchSignedDocumentsFromLinear, 
   fetchReceivedPaymentsFromLinear,
@@ -7,7 +7,7 @@ import {
   fetchAllRevenueProjects,
   groupTasksByProject
 } from "@/lib/linear";
-import { generateBusinessSummary, formatSingleTask } from "@/lib/openai";
+import { generateBusinessSummary, formatSingleTask, extractMeetingSummary } from "@/lib/openai";
 import { runtimeConfig } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -136,6 +136,61 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
   return markdown;
 }
 
+async function buildMeetingsMarkdown(): Promise<string> {
+  const meetingsRootId = runtimeConfig.meetings.rootPageId();
+  const meetingsData = await getMeetingsForLastDays(meetingsRootId, 7);
+  
+  let markdown = "## 📅 Встречи\n\n";
+  
+  if (meetingsData.length === 0) {
+    markdown += "За последние 7 дней встреч не проводилось.\n\n";
+    return markdown;
+  }
+  
+  // Подсчитываем общее количество встреч
+  const totalMeetings = meetingsData.reduce((sum, dept) => sum + dept.meetings.length, 0);
+  markdown += `За последние 7 дней проведено **${totalMeetings} встреч** по отделам:\n\n`;
+  
+  for (const department of meetingsData) {
+    const deptEmoji = getDepartmentEmoji(department.department);
+    markdown += `### ${deptEmoji} ${department.department} - ${department.meetings.length} встреч\n\n`;
+    
+    // Обрабатываем встречи через GPT для получения кратких саммари
+    const meetingSummaries = await Promise.all(
+      department.meetings.map(async (meeting) => {
+        const summary = await extractMeetingSummary(meeting.content, meeting.title);
+        return { title: meeting.title, summary };
+      })
+    );
+    
+    for (const meeting of meetingSummaries) {
+      // Извлекаем название клиента из заголовка встречи (до первого ":")
+      const clientName = meeting.title.split(':')[0].trim();
+      markdown += `- **${clientName}** - ${meeting.summary}\n`;
+    }
+    
+    markdown += "\n";
+  }
+  
+  return markdown;
+}
+
+function getDepartmentEmoji(departmentName: string): string {
+  const emojiMap: Record<string, string> = {
+    'Sales (Костя)': '💼',
+    'Digital Sales (Кира)': '📱',
+    'Digital Sales (Кирилл)': '📱',
+    'Bizdev (Есения / Костя)': '📈',
+    'Business Development': '📈',
+    'Project (Женя)': '🔧',
+    'Partner (Маша)': '🤝',
+    'Finance (Катя)': '💰',
+    'CSM (Вася)': '👥'
+  };
+  
+  return emojiMap[departmentName] || '📋';
+}
+
 function getProjectEmoji(projectName: string): string {
   const emojiMap: Record<string, string> = {
     'Sales': '💼',
@@ -159,13 +214,14 @@ export async function POST() {
     const pageId = await createChildPage(parentId, title);
     
     // Build digest content
-    const [financialSection, weeklyFocusSection, departmentSection] = await Promise.all([
+    const [financialSection, weeklyFocusSection, departmentSection, meetingsSection] = await Promise.all([
       buildFinancialResultsMarkdown(),
       buildWeeklyFocusMarkdown(),
-      buildDepartmentBreakdownMarkdown()
+      buildDepartmentBreakdownMarkdown(),
+      buildMeetingsMarkdown()
     ]);
     
-    const fullDigest = financialSection + weeklyFocusSection + departmentSection;
+    const fullDigest = financialSection + weeklyFocusSection + departmentSection + meetingsSection;
     
     await appendMarkdownToPage(pageId, fullDigest);
     return new Response(JSON.stringify({ ok: true, pageId, title }), { status: 200 });
