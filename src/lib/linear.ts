@@ -98,3 +98,59 @@ export async function fetchSignedDocumentsFromLinear(daysBack: number = 7): Prom
     return [];
   }
 }
+
+export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Promise<string[]> {
+  try {
+    // REV-97 "Полученные деньги" task ID
+    const issueId = "c1007f05-76b9-40b3-a845-8e57bfc9df24";
+    
+    const data = await gql(GET_ISSUE_COMMENTS_QUERY, { issueId });
+    const comments = data.issue?.comments?.nodes || [];
+    
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    
+    const recentPayments: string[] = [];
+    
+    for (const comment of comments) {
+      const commentDate = new Date(comment.createdAt);
+      if (commentDate >= cutoffDate) {
+        // Parse payment info from comment body
+        const lines = comment.body.split('\n');
+        const dateMatch = lines[0].match(/(\d{2}\.\d{2}\.\d{4})/);
+        
+        if (dateMatch) {
+          const paymentDate = dateMatch[1];
+          // Extract payment details (look for bold text patterns or amounts)
+          const paymentLines = lines.filter((line: string) => 
+            line.includes('**') && (
+              line.includes('руб') || 
+              line.includes('₽') || 
+              line.includes('оплат') ||
+              line.includes('поступ') ||
+              line.includes('получ') ||
+              /\d+\s*000/.test(line) // Numbers with thousands
+            )
+          );
+          
+          for (const paymentLine of paymentLines) {
+            // Clean up markdown and extract meaningful text
+            const cleanPayment = paymentLine
+              .replace(/\*\*/g, '')
+              .replace(/^\s*-?\s*/, '')
+              .trim();
+            
+            if (cleanPayment) {
+              recentPayments.push(`${paymentDate}: ${cleanPayment}`);
+            }
+          }
+        }
+      }
+    }
+    
+    return recentPayments.reverse(); // Most recent first
+  } catch (error) {
+    console.error("Error fetching received payments from Linear:", error);
+    return [];
+  }
+}

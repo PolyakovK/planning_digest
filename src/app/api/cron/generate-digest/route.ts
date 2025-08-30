@@ -1,20 +1,35 @@
 import { appendMarkdownToPage, createChildPage } from "@/lib/notion";
-import { fetchSignedDocumentsFromLinear } from "@/lib/linear";
+import { fetchSignedDocumentsFromLinear, fetchReceivedPaymentsFromLinear } from "@/lib/linear";
 import { runtimeConfig } from "@/lib/env";
 
 export const runtime = "nodejs";
 
 async function buildFinancialResultsMarkdown(): Promise<string> {
-  const signedDocs = await fetchSignedDocumentsFromLinear(7);
+  const [signedDocs, receivedPayments] = await Promise.all([
+    fetchSignedDocumentsFromLinear(7),
+    fetchReceivedPaymentsFromLinear(7)
+  ]);
   
   let markdown = "## 💰 Финансовые результаты\n\n";
-  markdown += "### 📋 Подписанные документы за последние 7 дней\n\n";
   
+  // Подписанные документы
+  markdown += "### 📋 Подписанные документы за последние 7 дней\n\n";
   if (signedDocs.length === 0) {
     markdown += "Подписанных документов за последние 7 дней не найдено.\n\n";
   } else {
     for (const doc of signedDocs) {
       markdown += `- ${doc}\n`;
+    }
+    markdown += "\n";
+  }
+  
+  // Полученные деньги
+  markdown += "### 💵 Полученные деньги за последние 7 дней\n\n";
+  if (receivedPayments.length === 0) {
+    markdown += "Не было поступлений.\n\n";
+  } else {
+    for (const payment of receivedPayments) {
+      markdown += `- ${payment}\n`;
     }
     markdown += "\n";
   }
