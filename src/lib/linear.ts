@@ -144,6 +144,30 @@ export async function fetchDoneTasksFromLinear(): Promise<any[]> {
   }
 }
 
+export async function fetchAllRevenueProjects(): Promise<string[]> {
+  try {
+    // Revenue team ID
+    const teamId = "3ff6c82d-369a-4296-b903-92251ba52611";
+    
+    const data = await gql(`query GetRevenueProjects($teamId: String!) {
+      team(id: $teamId) {
+        projects(first: 50) {
+          nodes {
+            id
+            name
+          }
+        }
+      }
+    }`, { teamId });
+    
+    const projects = data.team?.projects?.nodes || [];
+    return projects.map((project: any) => project.name).sort();
+  } catch (error) {
+    console.error("Error fetching Revenue projects:", error);
+    return [];
+  }
+}
+
 export async function fetchActiveTasksFromLinear(): Promise<any[]> {
   try {
     // Revenue team ID

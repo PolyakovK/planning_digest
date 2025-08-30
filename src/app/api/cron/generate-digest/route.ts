@@ -4,6 +4,7 @@ import {
   fetchReceivedPaymentsFromLinear,
   fetchDoneTasksFromLinear,
   fetchActiveTasksFromLinear,
+  fetchAllRevenueProjects,
   groupTasksByProject
 } from "@/lib/linear";
 import { generateBusinessSummary, formatSingleTask } from "@/lib/openai";
@@ -76,30 +77,23 @@ async function buildWeeklyFocusMarkdown(): Promise<string> {
 }
 
 async function buildDepartmentBreakdownMarkdown(): Promise<string> {
-  const [doneTasks, activeTasks] = await Promise.all([
+  const [doneTasks, activeTasks, allProjects] = await Promise.all([
     fetchDoneTasksFromLinear(),
-    fetchActiveTasksFromLinear()
+    fetchActiveTasksFromLinear(),
+    fetchAllRevenueProjects()
   ]);
   
   const doneByProject = groupTasksByProject(doneTasks);
   const activeByProject = groupTasksByProject(activeTasks);
   
-  // Получаем все уникальные проекты
-  const allProjects = new Set([
-    ...Object.keys(doneByProject),
-    ...Object.keys(activeByProject)
-  ]);
-  
   let markdown = "## 📋 Итоги и планы по отделам\n\n";
   
-  for (const projectName of Array.from(allProjects).sort()) {
-    if (projectName === 'Без проекта') continue; // Пропускаем задачи без проекта
-    
+  // Проходим по всем проектам команды Revenue
+  for (const projectName of allProjects) {
     const projectDoneTasks = doneByProject[projectName] || [];
     const projectActiveTasks = activeByProject[projectName] || [];
     
-    // Пропускаем отделы без задач
-    if (projectDoneTasks.length === 0 && projectActiveTasks.length === 0) continue;
+    // Показываем все проекты, даже пустые
     
     markdown += `### ${getProjectEmoji(projectName)} ${projectName}\n\n`;
     markdown += "<columns>\n\n";
@@ -107,7 +101,7 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     // Левая колонка - Итоги
     markdown += "#### 📊 Итоги недели\n\n";
     if (projectDoneTasks.length === 0) {
-      markdown += "Выполненных задач нет.\n\n";
+      markdown += "Выполненных задач пока нет.\n\n";
     } else {
       // Форматируем каждую задачу через GPT
       const formattedDoneTasks = await Promise.all(
@@ -124,7 +118,7 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     // Правая колонка - Планы
     markdown += "#### 🎯 Планы недели\n\n";
     if (projectActiveTasks.length === 0) {
-      markdown += "Активных задач нет.\n\n";
+      markdown += "Активных задач пока нет.\n\n";
     } else {
       // Форматируем каждую задачу через GPT
       const formattedActiveTasks = await Promise.all(
@@ -145,13 +139,14 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
 function getProjectEmoji(projectName: string): string {
   const emojiMap: Record<string, string> = {
     'Sales': '💼',
-    'Analytics': '📊', 
-    'Finance': '💰',
     'Digital Sales': '📱',
-    'CSM': '🤝',
     'Business Development': '📈',
+    'Project': '🔧',
+    'Partner': '🤝',
+    'Finance': '💰',
     'Documents': '📄',
-    'Partner': '🤝'
+    'CSM': '👥',
+    'Analytics': '📊'
   };
   
   return emojiMap[projectName] || '📋';
