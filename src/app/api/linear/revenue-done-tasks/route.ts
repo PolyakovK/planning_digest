@@ -2,7 +2,7 @@ import { runtimeConfig } from "@/lib/env";
 
 export const runtime = "nodejs";
 
-const QUERY = `query GetRevenueDoneTasks($teamId: String!, $after: DateTime!) {
+const QUERY = `query GetRevenueDoneTasks($teamId: String!, $after: DateTimeOrDuration!) {
   team(id: $teamId) {
     id
     key
