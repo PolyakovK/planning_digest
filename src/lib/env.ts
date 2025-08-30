@@ -1,7 +1,8 @@
 type RequiredEnv =
   | "NOTION_TOKEN"
   | "DIGESTS_ROOT_PAGE_ID"
-  | "LINEAR_API_KEY";
+  | "LINEAR_API_KEY"
+  | "OPENAI_API_KEY";
 
 export function getEnv(name: RequiredEnv | string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -21,6 +22,9 @@ export const runtimeConfig = {
   },
   linear: {
     apiKey: () => getEnv("LINEAR_API_KEY"), // TODO: Add to .env
+  },
+  openai: {
+    apiKey: () => getEnv("OPENAI_API_KEY"), // TODO: Add to .env
   }
 };
 
