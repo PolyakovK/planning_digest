@@ -19,6 +19,7 @@ const QUERY = `query GetRevenueDoneTasks($teamId: String!) {
         id
         identifier
         title
+        description
         state { name }
         project { id name }
         assignee { id name }
