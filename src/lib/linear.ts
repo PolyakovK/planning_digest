@@ -100,4 +100,42 @@ export async function fetchIssuesByProjectId(projectId: string): Promise<LinearI
   return (data?.project?.issues?.nodes || []) as LinearIssue[];
 }
 
+export async function fetchDocumentsUpdates(
+  projectId: string,
+  days: number
+): Promise<{ signed: string[]; received_payments: string[] }> {
+  const data = await gql(
+    `query($id:String!){
+      project(id:$id){ id name
+        issues(first:50){ nodes{ id title
+          comments(first:50){ nodes{ id body createdAt } }
+        } }
+      }
+    }`,
+    { id: projectId }
+  );
+  const issues = (data?.project?.issues?.nodes || []) as Array<{ id: string; title: string; comments?: { nodes: Array<{ body: string; createdAt: string }> } }>; 
+  const now = Date.now();
+  const ms = days * 24 * 60 * 60 * 1000;
+  const signed: string[] = [];
+  const payments: string[] = [];
+  for (const issue of issues) {
+    const title = (issue.title || "").toLowerCase();
+    const comments = issue.comments?.nodes || [];
+    const recent = comments.filter((c) => now - new Date(c.createdAt).getTime() <= ms);
+    for (const c of recent) {
+      const lines = (c.body || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+      for (const ln of lines) {
+        if (/^всем привет/i.test(ln)) continue;
+        if (/^ссылка/i.test(ln)) continue;
+        if (/google\s*диск/i.test(ln)) continue;
+        if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(ln)) continue;
+        if (title.includes("подпис")) signed.push(ln);
+        else if (title.includes("получен") || title.includes("деньг")) payments.push(ln);
+      }
+    }
+  }
+  return { signed, received_payments: payments } as any;
+}
+
 
