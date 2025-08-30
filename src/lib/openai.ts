@@ -20,7 +20,7 @@ export async function formatSingleTask(task: any): Promise<string> {
 
 ЗАДАЧА: ${task.title}
 ОПИСАНИЕ: ${task.description || 'Нет описания'}
-ПОСЛЕДНИЙ КОММЕНТАРИЙ: ${latestComment || 'Нет комментариев'}
+${latestComment ? `ПОСЛЕДНИЙ КОММЕНТАРИЙ: ${latestComment}` : ''}
 
 ТРЕБОВАНИЯ:
 - Сохрани структуру полей Linear
@@ -28,6 +28,7 @@ export async function formatSingleTask(task: any): Promise<string> {
 - Если поле пустое - оставь пустым
 - Максимум 4-5 строк общего текста
 - СТРОГО БЕЗ символов # или заголовков
+- Поле "Последний комментарий" показывай ТОЛЬКО если комментарий есть
 
 ФОРМАТ:
 **${task.title}**
@@ -35,8 +36,7 @@ export async function formatSingleTask(task: any): Promise<string> {
 Почему важно: [если есть в описании - извлеки, иначе пусто]
 
 Описание задачи: [краткое описание или "Описание не заполнено"]
-
-Последний комментарий: [если есть - кратко, иначе пусто]`;
+${latestComment ? '\nПоследний комментарий: [кратко суть комментария]' : ''}`;
 
          try {
            const completion = await getOpenAI().chat.completions.create({
