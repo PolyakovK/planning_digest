@@ -51,6 +51,16 @@ async function buildWeeklyFocusMarkdown(): Promise<string> {
     fetchActiveTasksFromLinear()
   ]);
   
+  // Найти задачу REV-101 для добавления её последнего комментария в итоги
+  const rev101Task = activeTasks.find(task => task.identifier === 'REV-101');
+  let rev101LastComment = '';
+  
+  if (rev101Task && rev101Task.comments?.nodes?.length > 0) {
+    // Получить последний комментарий (комментарии отсортированы по createdAt)
+    const lastComment = rev101Task.comments.nodes[rev101Task.comments.nodes.length - 1];
+    rev101LastComment = lastComment.body || '';
+  }
+  
   const [completedSummary, activeSummary] = await Promise.all([
     generateBusinessSummary(doneTasks, "completed"),
     generateBusinessSummary(activeTasks, "active")
@@ -64,6 +74,12 @@ async function buildWeeklyFocusMarkdown(): Promise<string> {
   // Левая колонка - Итоги
   markdown += "### 📊 Итоги недели\n\n";
   markdown += completedSummary + "\n\n";
+  
+  // Добавляем последний комментарий REV-101 как итог недели
+  if (rev101LastComment) {
+    markdown += "**🎯 Фокусные клиенты (итоги прошлой недели):**\n\n";
+    markdown += rev101LastComment + "\n\n";
+  }
   
   markdown += "<split/>\n\n";
   
@@ -103,9 +119,19 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     if (projectDoneTasks.length === 0) {
       markdown += "Выполненных задач пока нет.\n\n";
     } else {
-      // Форматируем каждую задачу через GPT
+      // Обрабатываем задачи с особой логикой для REV-101
       const formattedDoneTasks = await Promise.all(
-        projectDoneTasks.map(task => formatSingleTask(task))
+        projectDoneTasks.map(async (task) => {
+          if (task.identifier === 'REV-101') {
+            // Специальная логика для REV-101 - показываем полное описание без LLM
+            const title = task.title || 'Без названия';
+            const description = task.description || 'Нет описания';
+            return `**${title}**\n\n${description}`;
+          } else {
+            // Обычная логика через LLM для всех остальных задач
+            return await formatSingleTask(task);
+          }
+        })
       );
       
       for (const formattedTask of formattedDoneTasks) {
@@ -120,9 +146,19 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     if (projectActiveTasks.length === 0) {
       markdown += "Активных задач пока нет.\n\n";
     } else {
-      // Форматируем каждую задачу через GPT
+      // Обрабатываем задачи с особой логикой для REV-101
       const formattedActiveTasks = await Promise.all(
-        projectActiveTasks.map(task => formatSingleTask(task))
+        projectActiveTasks.map(async (task) => {
+          if (task.identifier === 'REV-101') {
+            // Специальная логика для REV-101 - показываем полное описание без LLM
+            const title = task.title || 'Без названия';
+            const description = task.description || 'Нет описания';
+            return `**${title}**\n\n${description}`;
+          } else {
+            // Обычная логика через LLM для всех остальных задач
+            return await formatSingleTask(task);
+          }
+        })
       );
       
       for (const formattedTask of formattedActiveTasks) {
