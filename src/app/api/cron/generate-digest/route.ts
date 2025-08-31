@@ -51,16 +51,6 @@ async function buildWeeklyFocusMarkdown(): Promise<string> {
     fetchActiveTasksFromLinear()
   ]);
   
-  // Найти задачу REV-101 для добавления её последнего комментария в итоги
-  const rev101Task = activeTasks.find(task => task.identifier === 'REV-101');
-  let rev101LastComment = '';
-  
-  if (rev101Task && rev101Task.comments?.nodes?.length > 0) {
-    // Получить последний комментарий (комментарии отсортированы по createdAt)
-    const lastComment = rev101Task.comments.nodes[rev101Task.comments.nodes.length - 1];
-    rev101LastComment = lastComment.body || '';
-  }
-  
   const [completedSummary, activeSummary] = await Promise.all([
     generateBusinessSummary(doneTasks, "completed"),
     generateBusinessSummary(activeTasks, "active")
@@ -74,12 +64,6 @@ async function buildWeeklyFocusMarkdown(): Promise<string> {
   // Левая колонка - Итоги
   markdown += "### 📊 Итоги недели\n\n";
   markdown += completedSummary + "\n\n";
-  
-  // Добавляем последний комментарий REV-101 как итог недели
-  if (rev101LastComment) {
-    markdown += "**🎯 Фокусные клиенты (итоги прошлой недели):**\n\n";
-    markdown += rev101LastComment + "\n\n";
-  }
   
   markdown += "<split/>\n\n";
   
@@ -99,6 +83,16 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     fetchAllRevenueProjects()
   ]);
   
+  // Найти задачу REV-101 для добавления её последнего комментария в итоги Sales
+  const rev101Task = activeTasks.find(task => task.identifier === 'REV-101');
+  let rev101LastComment = '';
+  
+  if (rev101Task && rev101Task.comments?.nodes?.length > 0) {
+    // Получить последний комментарий (комментарии отсортированы по createdAt)
+    const lastComment = rev101Task.comments.nodes[rev101Task.comments.nodes.length - 1];
+    rev101LastComment = lastComment.body || '';
+  }
+  
   const doneByProject = groupTasksByProject(doneTasks);
   const activeByProject = groupTasksByProject(activeTasks);
   
@@ -116,6 +110,13 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     
     // Левая колонка - Итоги
     markdown += "**📊 Итоги недели**\n\n";
+    
+    // Для проекта Sales добавляем последний комментарий REV-101
+    if (projectName === 'Sales' && rev101LastComment) {
+      markdown += "**🎯 Фокусные клиенты (итоги прошлой недели):**\n\n";
+      markdown += rev101LastComment + "\n\n";
+    }
+    
     if (projectDoneTasks.length === 0) {
       markdown += "Выполненных задач пока нет.\n\n";
     } else {
