@@ -184,7 +184,7 @@ export async function fetchActiveTasksFromLinear(): Promise<any[]> {
             }
           }
           orderBy: updatedAt
-          first: 50
+          first: 100
         ) {
           nodes {
             id
@@ -228,6 +228,50 @@ export function groupTasksByProject(tasks: any[]): Record<string, any[]> {
   }
   
   return grouped;
+}
+
+export async function fetchSpecificTask(identifier: string): Promise<any | null> {
+  try {
+    // Revenue team ID
+    const teamId = "3ff6c82d-369a-4296-b903-92251ba52611";
+    
+    const data = await gql(`query GetSpecificTask($teamId: String!, $identifier: String!) {
+      team(id: $teamId) {
+        issues(
+          filter: { 
+            identifier: { eq: $identifier }
+          }
+          first: 1
+        ) {
+          nodes {
+            id
+            identifier
+            title
+            description
+            state { name }
+            project { id name }
+            assignee { id name }
+            createdAt
+            updatedAt
+            comments(orderBy: createdAt, last: 10) {
+              nodes {
+                id
+                body
+                createdAt
+                user { name }
+              }
+            }
+          }
+        }
+      }
+    }`, { teamId, identifier });
+    
+    const tasks = data.team?.issues?.nodes || [];
+    return tasks.length > 0 ? tasks[0] : null;
+  } catch (error) {
+    console.error(`Error fetching task ${identifier} from Linear:`, error);
+    return null;
+  }
 }
 
 export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Promise<string[]> {

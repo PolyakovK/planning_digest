@@ -5,7 +5,8 @@ import {
   fetchDoneTasksFromLinear,
   fetchActiveTasksFromLinear,
   fetchAllRevenueProjects,
-  groupTasksByProject
+  groupTasksByProject,
+  fetchSpecificTask
 } from "@/lib/linear";
 import { generateBusinessSummary, formatSingleTask, extractMeetingSummary } from "@/lib/openai";
 import { runtimeConfig } from "@/lib/env";
@@ -97,6 +98,24 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
   // Проверим все задачи с номером 101
   const all101Tasks = activeTasks.filter(task => task.identifier?.includes('101'));
   console.log('DEBUG: все задачи с номером 101:', all101Tasks.map(t => ({id: t.identifier, title: t.title, status: t.state?.name})));
+  console.log('DEBUG: общее количество активных задач:', activeTasks.length);
+  console.log('DEBUG: первые 5 задач:', activeTasks.slice(0, 5).map(t => ({id: t.identifier, title: t.title})));
+  
+  // Дополнительная проверка: запросим REV-101 напрямую
+  const directRev101 = await fetchSpecificTask('REV-101');
+  console.log('DEBUG: прямой запрос REV-101:', directRev101 ? {
+    id: directRev101.identifier,
+    title: directRev101.title,
+    status: directRev101.state?.name,
+    project: directRev101.project?.name,
+    commentsCount: directRev101.comments?.nodes?.length || 0
+  } : 'НЕ НАЙДЕНА');
+  
+  // Если REV-101 не найдена в activeTasks, но найдена прямым запросом - используем её
+  if (!rev101Task && directRev101) {
+    console.log('DEBUG: используем REV-101 из прямого запроса');
+    rev101Task = directRev101;
+  }
   
   if (rev101Task) {
     // Получить описание задачи для планов
