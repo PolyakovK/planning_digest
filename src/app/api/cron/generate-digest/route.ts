@@ -94,6 +94,10 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
   console.log('DEBUG REV-101: статус задачи:', rev101Task?.state?.name);
   console.log('DEBUG REV-101: количество комментариев:', rev101Task?.comments?.nodes?.length || 0);
   
+  // Проверим все задачи с номером 101
+  const all101Tasks = activeTasks.filter(task => task.identifier?.includes('101'));
+  console.log('DEBUG: все задачи с номером 101:', all101Tasks.map(t => ({id: t.identifier, title: t.title, status: t.state?.name})));
+  
   if (rev101Task) {
     // Получить описание задачи для планов
     rev101Description = rev101Task.description || '';
