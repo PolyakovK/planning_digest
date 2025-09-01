@@ -87,10 +87,14 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
   const rev101Task = activeTasks.find(task => task.identifier === 'REV-101');
   let rev101LastComment = '';
   
+  console.log('DEBUG REV-101: найдена задача?', !!rev101Task);
+  console.log('DEBUG REV-101: количество комментариев:', rev101Task?.comments?.nodes?.length || 0);
+  
   if (rev101Task && rev101Task.comments?.nodes?.length > 0) {
     // Получить последний комментарий (комментарии отсортированы по createdAt)
     const lastComment = rev101Task.comments.nodes[rev101Task.comments.nodes.length - 1];
     rev101LastComment = lastComment.body || '';
+    console.log('DEBUG REV-101: последний комментарий:', rev101LastComment ? 'есть' : 'пустой');
   }
   
   const doneByProject = groupTasksByProject(doneTasks);
@@ -112,9 +116,13 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     markdown += "**📊 Итоги недели**\n\n";
     
     // Для проекта Sales добавляем последний комментарий REV-101
-    if (projectName === 'Sales' && rev101LastComment) {
+    if (projectName === 'Sales') {
       markdown += "**🎯 Фокусные клиенты (итоги прошлой недели):**\n\n";
-      markdown += rev101LastComment + "\n\n";
+      if (rev101LastComment && rev101LastComment.trim()) {
+        markdown += rev101LastComment + "\n\n";
+      } else {
+        markdown += "Комментарии за неделю отсутствуют.\n\n";
+      }
     }
     
     if (projectDoneTasks.length === 0) {
