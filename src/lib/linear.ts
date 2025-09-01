@@ -29,7 +29,7 @@ const GET_ISSUE_COMMENTS_QUERY = `query GetIssueComments($issueId: String!) {
     identifier
     title
     state { name }
-    comments {
+    comments(orderBy: createdAt) {
       nodes {
         id
         body
@@ -124,7 +124,7 @@ export async function fetchDoneTasksFromLinear(): Promise<any[]> {
             createdAt
             updatedAt
             completedAt
-            comments {
+            comments(orderBy: createdAt) {
               nodes {
                 id
                 body
@@ -196,7 +196,7 @@ export async function fetchActiveTasksFromLinear(): Promise<any[]> {
             assignee { id name }
             createdAt
             updatedAt
-            comments {
+            comments(orderBy: createdAt) {
               nodes {
                 id
                 body
