@@ -168,12 +168,20 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
       }
     }
     
-    if (projectDoneTasks.length === 0) {
+    // Исключаем REV-96 и REV-97 из выполненных задач Documents (они обработаны в разделе "Финансовые результаты")
+    let doneTasksToProcess = projectDoneTasks;
+    if (projectName === 'Documents') {
+      doneTasksToProcess = projectDoneTasks.filter(task => 
+        task.identifier !== 'REV-96' && task.identifier !== 'REV-97'
+      );
+    }
+    
+    if (doneTasksToProcess.length === 0) {
       markdown += "Выполненных задач пока нет.\n\n";
     } else {
       // Обрабатываем задачи с особой логикой для REV-101
       const formattedDoneTasks = await Promise.all(
-        projectDoneTasks.map(async (task) => {
+        doneTasksToProcess.map(async (task) => {
           if (task.identifier === 'REV-101') {
             // Специальная логика для REV-101 - показываем полное описание без LLM
             const title = task.title || 'Без названия';
@@ -202,13 +210,22 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
       markdown += rev101Description + "\n\n";
     }
     
-    if (projectActiveTasks.length === 0) {
+    // Обрабатываем задачи, исключая специальные задачи которые обработаны выше
+    let tasksToProcess = projectActiveTasks;
+    
+    if (projectName === 'Sales') {
+      // Исключаем REV-101 для Sales (она уже обработана выше)
+      tasksToProcess = projectActiveTasks.filter(task => task.identifier !== 'REV-101');
+    } else if (projectName === 'Documents') {
+      // Исключаем REV-96 и REV-97 для Documents (они обработаны в разделе "Финансовые результаты")
+      tasksToProcess = projectActiveTasks.filter(task => 
+        task.identifier !== 'REV-96' && task.identifier !== 'REV-97'
+      );
+    }
+    
+    if (tasksToProcess.length === 0) {
       markdown += "Других активных задач пока нет.\n\n";
     } else {
-      // Обрабатываем задачи, исключая REV-101 для Sales (она уже обработана выше)
-      const tasksToProcess = projectName === 'Sales' 
-        ? projectActiveTasks.filter(task => task.identifier !== 'REV-101')
-        : projectActiveTasks;
         
       const formattedActiveTasks = await Promise.all(
         tasksToProcess.map(async (task) => {
