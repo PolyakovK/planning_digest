@@ -85,7 +85,7 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
   ]);
   
   // Найти задачу REV-101 для добавления её последнего комментария в итоги Sales
-  const rev101Task = activeTasks.find(task => task.identifier === 'REV-101');
+  let rev101Task = activeTasks.find(task => task.identifier === 'REV-101');
   let rev101LastComment = '';
   let rev101Description = '';
   
