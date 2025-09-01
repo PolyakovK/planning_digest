@@ -86,15 +86,21 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
   // Найти задачу REV-101 для добавления её последнего комментария в итоги Sales
   const rev101Task = activeTasks.find(task => task.identifier === 'REV-101');
   let rev101LastComment = '';
+  let rev101Description = '';
   
   console.log('DEBUG REV-101: найдена задача?', !!rev101Task);
   console.log('DEBUG REV-101: количество комментариев:', rev101Task?.comments?.nodes?.length || 0);
   
-  if (rev101Task && rev101Task.comments?.nodes?.length > 0) {
-    // Получить последний комментарий (комментарии отсортированы по createdAt)
-    const lastComment = rev101Task.comments.nodes[rev101Task.comments.nodes.length - 1];
-    rev101LastComment = lastComment.body || '';
-    console.log('DEBUG REV-101: последний комментарий:', rev101LastComment ? 'есть' : 'пустой');
+  if (rev101Task) {
+    // Получить описание задачи для планов
+    rev101Description = rev101Task.description || '';
+    
+    // Получить самый последний комментарий (без ограничения по дате)
+    if (rev101Task.comments?.nodes?.length > 0) {
+      const lastComment = rev101Task.comments.nodes[rev101Task.comments.nodes.length - 1];
+      rev101LastComment = lastComment.body || '';
+      console.log('DEBUG REV-101: последний комментарий:', rev101LastComment ? 'есть' : 'пустой');
+    }
   }
   
   const doneByProject = groupTasksByProject(doneTasks);
@@ -152,12 +158,23 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
     
     // Правая колонка - Планы
     markdown += "**🎯 Планы недели**\n\n";
+    
+    // Для проекта Sales добавляем описание REV-101 
+    if (projectName === 'Sales' && rev101Description) {
+      markdown += "**🔹 Фокусные клиенты**\n\n";
+      markdown += rev101Description + "\n\n";
+    }
+    
     if (projectActiveTasks.length === 0) {
-      markdown += "Активных задач пока нет.\n\n";
+      markdown += "Других активных задач пока нет.\n\n";
     } else {
-      // Обрабатываем задачи с особой логикой для REV-101
+      // Обрабатываем задачи, исключая REV-101 для Sales (она уже обработана выше)
+      const tasksToProcess = projectName === 'Sales' 
+        ? projectActiveTasks.filter(task => task.identifier !== 'REV-101')
+        : projectActiveTasks;
+        
       const formattedActiveTasks = await Promise.all(
-        projectActiveTasks.map(async (task) => {
+        tasksToProcess.map(async (task) => {
           if (task.identifier === 'REV-101') {
             // Специальная логика для REV-101 - показываем полное описание без LLM
             const title = task.title || 'Без названия';
