@@ -89,22 +89,30 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
   let rev101Description = '';
   
   console.log('DEBUG REV-101: найдена задача?', !!rev101Task);
+  console.log('DEBUG REV-101: идентификатор задачи:', rev101Task?.identifier);
+  console.log('DEBUG REV-101: название проекта:', rev101Task?.project?.name);
+  console.log('DEBUG REV-101: статус задачи:', rev101Task?.state?.name);
   console.log('DEBUG REV-101: количество комментариев:', rev101Task?.comments?.nodes?.length || 0);
   
   if (rev101Task) {
     // Получить описание задачи для планов
     rev101Description = rev101Task.description || '';
+    console.log('DEBUG REV-101: длина описания:', rev101Description.length);
     
     // Получить самый последний комментарий (без ограничения по дате)
     if (rev101Task.comments?.nodes?.length > 0) {
       const lastComment = rev101Task.comments.nodes[rev101Task.comments.nodes.length - 1];
       rev101LastComment = lastComment.body || '';
-      console.log('DEBUG REV-101: последний комментарий:', rev101LastComment ? 'есть' : 'пустой');
+      console.log('DEBUG REV-101: длина последнего комментария:', rev101LastComment.length);
     }
   }
   
   const doneByProject = groupTasksByProject(doneTasks);
   const activeByProject = groupTasksByProject(activeTasks);
+  
+  console.log('DEBUG: все проекты:', allProjects);
+  console.log('DEBUG: проекты с активными задачами:', Object.keys(activeByProject));
+  console.log('DEBUG: активные задачи в Sales:', activeByProject['Sales']?.map(t => t.identifier) || []);
   
   let markdown = "## 📋 Итоги и планы по отделам\n\n";
   
@@ -112,6 +120,12 @@ async function buildDepartmentBreakdownMarkdown(): Promise<string> {
   for (const projectName of allProjects) {
     const projectDoneTasks = doneByProject[projectName] || [];
     const projectActiveTasks = activeByProject[projectName] || [];
+    
+    if (projectName === 'Sales') {
+      console.log('DEBUG Sales: количество активных задач:', projectActiveTasks.length);
+      console.log('DEBUG Sales: rev101LastComment:', rev101LastComment ? 'есть' : 'пустой');
+      console.log('DEBUG Sales: rev101Description:', rev101Description ? 'есть' : 'пустой');
+    }
     
     // Показываем все проекты, даже пустые
     
