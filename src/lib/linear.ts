@@ -292,32 +292,52 @@ export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Pro
       if (commentDate >= cutoffDate) {
         // Parse payment info from comment body
         const lines = comment.body.split('\n');
-        const dateMatch = lines[0].match(/(\d{2}\.\d{2}\.\d{4})/);
         
+        // Ищем дату в тексте комментария (может быть в любой строке)
+        const fullText = comment.body;
+        const dateMatch = fullText.match(/с\s+(\d{1,2})\s+по\s+(\d{1,2})\s+(\w+)/i) || 
+                         fullText.match(/(\d{2}\.\d{2}\.\d{4})/) ||
+                         fullText.match(/(\d{1,2}\.\d{1,2}\.\d{4})/);
+        
+        let paymentPeriod = '';
         if (dateMatch) {
-          const paymentDate = dateMatch[1];
-          // Extract payment details (look for bold text patterns or amounts)
-          const paymentLines = lines.filter((line: string) => 
-            line.includes('**') && (
-              line.includes('руб') || 
-              line.includes('₽') || 
-              line.includes('оплат') ||
-              line.includes('поступ') ||
-              line.includes('получ') ||
-              /\d+\s*000/.test(line) // Numbers with thousands
-            )
+          if (dateMatch[1] && dateMatch[2] && dateMatch[3]) {
+            // Формат "с 25 по 29 августа"
+            paymentPeriod = `${dateMatch[1]}-${dateMatch[2]} ${dateMatch[3]}`;
+          } else {
+            // Формат даты
+            paymentPeriod = dateMatch[1];
+          }
+        } else {
+          // Если дату не нашли, используем дату создания комментария
+          const commentCreated = new Date(comment.createdAt);
+          paymentPeriod = commentCreated.toLocaleDateString('ru-RU');
+        }
+        
+        // Ищем строки с платежами (содержат названия компаний и суммы)
+        const paymentLines = lines.filter((line: string) => {
+          const trimmed = line.trim();
+          return trimmed && (
+            // Строки с суммами (к, тыс, руб, ₽)
+            /\d+\s*к\b/i.test(trimmed) ||
+            /\d+\s*тыс/i.test(trimmed) ||
+            /\d+\s*руб/i.test(trimmed) ||
+            /₽/.test(trimmed) ||
+            /\d+\s*000/.test(trimmed) ||
+            // Строки с ООО/компаниями и суммами
+            (/ООО/.test(trimmed) && /\d+/.test(trimmed)) ||
+            (/компани/i.test(trimmed) && /\d+/.test(trimmed))
           );
+        });
+        
+        for (const paymentLine of paymentLines) {
+          // Очищаем строку от лишних символов
+          const cleanPayment = paymentLine
+            .replace(/^\s*-?\s*/, '') // Убираем тире и пробелы в начале
+            .trim();
           
-          for (const paymentLine of paymentLines) {
-            // Clean up markdown and extract meaningful text
-            const cleanPayment = paymentLine
-              .replace(/\*\*/g, '')
-              .replace(/^\s*-?\s*/, '')
-              .trim();
-            
-            if (cleanPayment) {
-              recentPayments.push(`${paymentDate}: ${cleanPayment}`);
-            }
+          if (cleanPayment && cleanPayment.length > 5) { // Минимальная длина для осмысленной записи
+            recentPayments.push(`${paymentPeriod}: ${cleanPayment}`);
           }
         }
       }
