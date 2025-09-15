@@ -53,29 +53,52 @@ export async function fetchSignedDocumentsFromLinear(daysBack: number = 7): Prom
     const data = await gql(GET_ISSUE_COMMENTS_QUERY, { issueId });
     const comments = data.issue?.comments?.nodes || [];
     
+    console.log('DEBUG REV-96: всего комментариев найдено:', comments.length);
+    console.log('DEBUG REV-96: идентификатор задачи:', data.issue?.identifier);
+    console.log('DEBUG REV-96: название задачи:', data.issue?.title);
+    
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    console.log('DEBUG REV-96: cutoff date для фильтрации:', cutoffDate.toISOString());
     
     const recentDocuments: string[] = [];
     
     for (const comment of comments) {
       const commentDate = new Date(comment.createdAt);
+      console.log('DEBUG REV-96: обрабатываем комментарий от:', commentDate.toISOString());
+      console.log('DEBUG REV-96: комментарий проходит фильтр по дате?', commentDate >= cutoffDate);
+      console.log('DEBUG REV-96: содержимое комментария:', comment.body);
+      
       if (commentDate >= cutoffDate) {
         // Parse document info from comment body
         const lines = comment.body.split('\n');
+        console.log('DEBUG REV-96: комментарий разбит на строки:', lines.length);
+        console.log('DEBUG REV-96: первая строка:', lines[0]);
+        
         const dateMatch = lines[0].match(/(\d{2}\.\d{2}\.\d{4})/);
+        console.log('DEBUG REV-96: найдена дата в первой строке?', !!dateMatch, dateMatch);
         
         if (dateMatch) {
           const docDate = dateMatch[1];
+          console.log('DEBUG REV-96: дата документа:', docDate);
+          
           // Extract document details (look for bold text patterns)
-          const docLines = lines.filter((line: string) => 
-            line.includes('**') && (
-              line.includes('ДС') || 
-              line.includes('NDA') || 
-              line.includes('договор') ||
-              line.includes('Лицензи')
-            )
-          );
+          const docLines = lines.filter((line: string) => {
+            const hasMarkdown = line.includes('**');
+            const hasDocKeyword = line.includes('ДС') || 
+                                  line.includes('NDA') || 
+                                  line.includes('договор') ||
+                                  line.includes('Лицензи');
+            
+            console.log('DEBUG REV-96: анализируем строку:', line);
+            console.log('DEBUG REV-96: содержит **?', hasMarkdown);
+            console.log('DEBUG REV-96: содержит ключевое слово?', hasDocKeyword);
+            
+            return hasMarkdown && hasDocKeyword;
+          });
+          
+          console.log('DEBUG REV-96: найдено строк с документами:', docLines.length);
+          console.log('DEBUG REV-96: строки с документами:', docLines);
           
           for (const docLine of docLines) {
             // Clean up markdown and extract meaningful text
@@ -84,13 +107,20 @@ export async function fetchSignedDocumentsFromLinear(daysBack: number = 7): Prom
               .replace(/^\s*-?\s*/, '')
               .trim();
             
+            console.log('DEBUG REV-96: очищенный документ:', cleanDoc);
+            
             if (cleanDoc) {
-              recentDocuments.push(`${docDate}: ${cleanDoc}`);
+              const finalDoc = `${docDate}: ${cleanDoc}`;
+              console.log('DEBUG REV-96: добавляем документ:', finalDoc);
+              recentDocuments.push(finalDoc);
             }
           }
         }
       }
     }
+    
+    console.log('DEBUG REV-96: итоговый массив документов:', recentDocuments);
+    console.log('DEBUG REV-96: количество найденных документов:', recentDocuments.length);
     
     return recentDocuments.reverse(); // Most recent first
   } catch (error) {
