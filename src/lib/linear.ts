@@ -144,7 +144,7 @@ export async function fetchDoneTasksFromLinear(): Promise<any[]> {
             state: { name: { eq: "Done" } }
           }
           orderBy: updatedAt
-          first: 20
+          first: 50
         ) {
           nodes {
             id
