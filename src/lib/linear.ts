@@ -75,45 +75,48 @@ export async function fetchSignedDocumentsFromLinear(daysBack: number = 7): Prom
         console.log('DEBUG REV-96: комментарий разбит на строки:', lines.length);
         console.log('DEBUG REV-96: первая строка:', lines[0]);
         
+        // Попробуем найти дату в первой строке в формате DD.MM.YYYY
         const dateMatch = lines[0].match(/(\d{2}\.\d{2}\.\d{4})/);
         console.log('DEBUG REV-96: найдена дата в первой строке?', !!dateMatch, dateMatch);
         
-        if (dateMatch) {
-          const docDate = dateMatch[1];
-          console.log('DEBUG REV-96: дата документа:', docDate);
+        // Если дата не найдена в первой строке, используем дату создания комментария
+        const docDate = dateMatch ? dateMatch[1] : commentDate.toLocaleDateString('ru-RU');
+        console.log('DEBUG REV-96: дата документа:', docDate);
+        
+        // Extract document details (look for bold text patterns)
+        const docLines = lines.filter((line: string) => {
+          const hasMarkdown = line.includes('**');
+          const hasDocKeyword = line.includes('ДС') || 
+                                line.includes('NDA') || 
+                                line.includes('договор') ||
+                                line.includes('Лицензи') ||
+                                line.includes('Договор') ||
+                                line.includes('Карфак') ||
+                                line.includes('Лучи Здоровье');
           
-          // Extract document details (look for bold text patterns)
-          const docLines = lines.filter((line: string) => {
-            const hasMarkdown = line.includes('**');
-            const hasDocKeyword = line.includes('ДС') || 
-                                  line.includes('NDA') || 
-                                  line.includes('договор') ||
-                                  line.includes('Лицензи');
-            
-            console.log('DEBUG REV-96: анализируем строку:', line);
-            console.log('DEBUG REV-96: содержит **?', hasMarkdown);
-            console.log('DEBUG REV-96: содержит ключевое слово?', hasDocKeyword);
-            
-            return hasMarkdown && hasDocKeyword;
-          });
+          console.log('DEBUG REV-96: анализируем строку:', line);
+          console.log('DEBUG REV-96: содержит **?', hasMarkdown);
+          console.log('DEBUG REV-96: содержит ключевое слово?', hasDocKeyword);
           
-          console.log('DEBUG REV-96: найдено строк с документами:', docLines.length);
-          console.log('DEBUG REV-96: строки с документами:', docLines);
+          return hasMarkdown && hasDocKeyword;
+        });
+        
+        console.log('DEBUG REV-96: найдено строк с документами:', docLines.length);
+        console.log('DEBUG REV-96: строки с документами:', docLines);
+        
+        for (const docLine of docLines) {
+          // Clean up markdown and extract meaningful text
+          const cleanDoc = docLine
+            .replace(/\*\*/g, '')
+            .replace(/^\s*-?\s*/, '')
+            .trim();
           
-          for (const docLine of docLines) {
-            // Clean up markdown and extract meaningful text
-            const cleanDoc = docLine
-              .replace(/\*\*/g, '')
-              .replace(/^\s*-?\s*/, '')
-              .trim();
-            
-            console.log('DEBUG REV-96: очищенный документ:', cleanDoc);
-            
-            if (cleanDoc) {
-              const finalDoc = `${docDate}: ${cleanDoc}`;
-              console.log('DEBUG REV-96: добавляем документ:', finalDoc);
-              recentDocuments.push(finalDoc);
-            }
+          console.log('DEBUG REV-96: очищенный документ:', cleanDoc);
+          
+          if (cleanDoc) {
+            const finalDoc = `${docDate}: ${cleanDoc}`;
+            console.log('DEBUG REV-96: добавляем документ:', finalDoc);
+            recentDocuments.push(finalDoc);
           }
         }
       }
