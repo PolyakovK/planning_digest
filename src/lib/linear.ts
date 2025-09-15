@@ -282,22 +282,34 @@ export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Pro
     const data = await gql(GET_ISSUE_COMMENTS_QUERY, { issueId });
     const comments = data.issue?.comments?.nodes || [];
     
+    console.log('DEBUG REV-97: всего комментариев найдено:', comments.length);
+    console.log('DEBUG REV-97: идентификатор задачи:', data.issue?.identifier);
+    console.log('DEBUG REV-97: название задачи:', data.issue?.title);
+    
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    console.log('DEBUG REV-97: cutoff date для фильтрации:', cutoffDate.toISOString());
     
     const recentPayments: string[] = [];
     
     for (const comment of comments) {
       const commentDate = new Date(comment.createdAt);
+      console.log('DEBUG REV-97: обрабатываем комментарий от:', commentDate.toISOString());
+      console.log('DEBUG REV-97: комментарий проходит фильтр по дате?', commentDate >= cutoffDate);
+      console.log('DEBUG REV-97: содержимое комментария:', comment.body);
+      
       if (commentDate >= cutoffDate) {
         // Parse payment info from comment body
         const lines = comment.body.split('\n');
+        console.log('DEBUG REV-97: комментарий разбит на строки:', lines.length);
         
         // Ищем дату в тексте комментария (может быть в любой строке)
         const fullText = comment.body;
         const dateMatch = fullText.match(/с\s+(\d{1,2})\s+по\s+(\d{1,2})\s+(\w+)/i) || 
                          fullText.match(/(\d{2}\.\d{2}\.\d{4})/) ||
                          fullText.match(/(\d{1,2}\.\d{1,2}\.\d{4})/);
+        
+        console.log('DEBUG REV-97: найдена дата в тексте?', !!dateMatch, dateMatch);
         
         let paymentPeriod = '';
         if (dateMatch) {
@@ -313,22 +325,28 @@ export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Pro
           const commentCreated = new Date(comment.createdAt);
           paymentPeriod = commentCreated.toLocaleDateString('ru-RU');
         }
+        console.log('DEBUG REV-97: период платежа:', paymentPeriod);
         
         // Ищем строки с платежами (содержат названия компаний и суммы)
         const paymentLines = lines.filter((line: string) => {
           const trimmed = line.trim();
-          return trimmed && (
-            // Строки с суммами (к, тыс, руб, ₽)
-            /\d+\s*к\b/i.test(trimmed) ||
-            /\d+\s*тыс/i.test(trimmed) ||
-            /\d+\s*руб/i.test(trimmed) ||
-            /₽/.test(trimmed) ||
-            /\d+\s*000/.test(trimmed) ||
-            // Строки с ООО/компаниями и суммами
-            (/ООО/.test(trimmed) && /\d+/.test(trimmed)) ||
-            (/компани/i.test(trimmed) && /\d+/.test(trimmed))
-          );
+          const hasAmount = /\d+\s*к\b/i.test(trimmed) ||
+                           /\d+\s*тыс/i.test(trimmed) ||
+                           /\d+\s*руб/i.test(trimmed) ||
+                           /₽/.test(trimmed) ||
+                           /\d+\s*000/.test(trimmed);
+          const hasCompany = (/ООО/.test(trimmed) && /\d+/.test(trimmed)) ||
+                            (/компани/i.test(trimmed) && /\d+/.test(trimmed));
+          
+          console.log('DEBUG REV-97: анализируем строку:', trimmed);
+          console.log('DEBUG REV-97: содержит сумму?', hasAmount);
+          console.log('DEBUG REV-97: содержит компанию?', hasCompany);
+          
+          return trimmed && (hasAmount || hasCompany);
         });
+        
+        console.log('DEBUG REV-97: найдено строк с платежами:', paymentLines.length);
+        console.log('DEBUG REV-97: строки с платежами:', paymentLines);
         
         for (const paymentLine of paymentLines) {
           // Очищаем строку от лишних символов
@@ -336,12 +354,19 @@ export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Pro
             .replace(/^\s*-?\s*/, '') // Убираем тире и пробелы в начале
             .trim();
           
+          console.log('DEBUG REV-97: очищенный платеж:', cleanPayment);
+          
           if (cleanPayment && cleanPayment.length > 5) { // Минимальная длина для осмысленной записи
-            recentPayments.push(`${paymentPeriod}: ${cleanPayment}`);
+            const finalPayment = `${paymentPeriod}: ${cleanPayment}`;
+            console.log('DEBUG REV-97: добавляем платеж:', finalPayment);
+            recentPayments.push(finalPayment);
           }
         }
       }
     }
+    
+    console.log('DEBUG REV-97: итоговый массив платежей:', recentPayments);
+    console.log('DEBUG REV-97: количество найденных платежей:', recentPayments.length);
     
     return recentPayments.reverse(); // Most recent first
   } catch (error) {
