@@ -310,6 +310,7 @@ export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Pro
                          fullText.match(/(\d{1,2}\.\d{1,2}\.\d{4})/);
         
         console.log('DEBUG REV-97: найдена дата в тексте?', !!dateMatch, dateMatch);
+        console.log('DEBUG REV-97: полный текст для поиска даты:', JSON.stringify(fullText));
         
         let paymentPeriod = '';
         if (dateMatch) {
@@ -332,15 +333,20 @@ export async function fetchReceivedPaymentsFromLinear(daysBack: number = 7): Pro
           const trimmed = line.trim();
           const hasAmount = /\d+\s*к\b/i.test(trimmed) ||
                            /\d+\s*тыс/i.test(trimmed) ||
-                           /\d+\s*руб/i.test(trimmed) ||
+                           /\d+[\s,]*руб/i.test(trimmed) ||
+                           /\d+[\s,]*млн/i.test(trimmed) ||
                            /₽/.test(trimmed) ||
                            /\d+\s*000/.test(trimmed);
           const hasCompany = (/ООО/.test(trimmed) && /\d+/.test(trimmed)) ||
-                            (/компани/i.test(trimmed) && /\d+/.test(trimmed));
+                            (/компани/i.test(trimmed) && /\d+/.test(trimmed)) ||
+                            (/директ/i.test(trimmed) && /\d+/.test(trimmed)) ||
+                            (/флаувау/i.test(trimmed) && /\d+/.test(trimmed));
           
           console.log('DEBUG REV-97: анализируем строку:', trimmed);
           console.log('DEBUG REV-97: содержит сумму?', hasAmount);
           console.log('DEBUG REV-97: содержит компанию?', hasCompany);
+          console.log('DEBUG REV-97: тест млн:', /\d+[\s,]*млн/i.test(trimmed));
+          console.log('DEBUG REV-97: тест руб:', /\d+[\s,]*руб/i.test(trimmed));
           
           return trimmed && (hasAmount || hasCompany);
         });
