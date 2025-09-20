@@ -39,8 +39,8 @@ ${latestComment ? `ПОСЛЕДНИЙ КОММЕНТАРИЙ: ${latestComment}` 
 ${latestComment ? '\nПоследний комментарий: [кратко суть комментария]' : ''}`;
 
          try {
-           const completion = await getOpenAI().chat.completions.create({
-             model: "gpt-4o",
+          const completion = await getOpenAI().chat.completions.create({
+            model: runtimeConfig.openai.model(),
              messages: [
                {
                  role: "system",
@@ -51,8 +51,8 @@ ${latestComment ? '\nПоследний комментарий: [кратко с
                  content: prompt
                }
              ],
-             max_tokens: 150,
-             temperature: 0.3
+            max_tokens: runtimeConfig.openai.maxTokens(),
+            temperature: runtimeConfig.openai.temperature()
            });
 
                       const result = completion.choices[0]?.message?.content || `**${task.title}**`;
@@ -94,7 +94,7 @@ ${!executiveSummary ? meetingContent.slice(0, 1000) : ''}
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
+      model: runtimeConfig.openai.model(),
       messages: [
         {
           role: "system",
@@ -105,8 +105,8 @@ ${!executiveSummary ? meetingContent.slice(0, 1000) : ''}
           content: prompt
         }
       ],
-      max_tokens: 100,
-      temperature: 0.3
+      max_tokens: runtimeConfig.openai.maxTokens(),
+      temperature: runtimeConfig.openai.temperature()
     });
 
     const result = completion.choices[0]?.message?.content || "встреча проведена";
@@ -195,7 +195,7 @@ ${taskList}
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o", // GPT-5 пока недоступен, используем лучшую доступную модель
+      model: runtimeConfig.openai.model(),
       messages: [
         {
           role: "system",
@@ -206,8 +206,8 @@ ${taskList}
           content: prompt
         }
       ],
-      max_tokens: 500,
-      temperature: 0.3
+      max_tokens: runtimeConfig.openai.maxTokens(),
+      temperature: runtimeConfig.openai.temperature()
     });
 
     const result = completion.choices[0]?.message?.content || "Не удалось создать саммари";

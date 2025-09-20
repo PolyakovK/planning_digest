@@ -29,6 +29,9 @@ export const runtimeConfig = {
   },
   openai: {
     apiKey: () => getEnv("OPENAI_API_KEY"), // TODO: Add to .env
+    model: () => process.env.OPENAI_MODEL || "gpt-5", // TODO: Add to .env
+    temperature: () => Number(process.env.OPENAI_TEMPERATURE ?? 1),
+    maxTokens: () => Number(process.env.OPENAI_MAX_COMPLETION_TOKENS ?? 1000)
   }
 };
 
